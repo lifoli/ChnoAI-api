@@ -1,0 +1,51 @@
+# Build stage
+FROM node:18-alpine AS builder
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+
+# Install all dependencies including devDependencies
+RUN npm ci
+
+COPY . .
+
+# Build TypeScript
+RUN npm run build
+
+# Production stage
+FROM node:18-alpine
+
+# Install PM2 globally
+RUN npm install pm2 -g
+
+WORKDIR /usr/src/app
+
+COPY package*.json ./
+
+# Install only production dependencies
+RUN npm ci --only=production
+
+# Copy built files from builder stage
+COPY --from=builder /usr/src/app/dist ./dist
+
+EXPOSE 8080
+
+# Create a PM2 ecosystem file
+RUN echo 'module.exports = { \
+  apps: [{ \
+    name: "app", \
+    script: "./dist/index.js", \
+    instances: "max", \
+    exec_mode: "cluster", \
+    autorestart: true, \
+    watch: false, \
+    max_memory_restart: "1G", \
+    env: { \
+      NODE_ENV: "production" \
+    } \
+  }] \
+}' > ecosystem.config.js
+
+# Start the application using PM2
+CMD ["pm2-runtime", "start", "ecosystem.config.js"]
