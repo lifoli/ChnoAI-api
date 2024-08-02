@@ -12,4 +12,5 @@ router.get("/test", techNote.test);
 router.get("/info/:userId", user.getInfoByUserId);
 
 router.post("/create", user.createUser);
+
 module.exports = router;
