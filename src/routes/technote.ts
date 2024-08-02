@@ -12,6 +12,6 @@ router.get("/all/:userId", techNote.gettechNoteListByUserId);
 
 router.post("/create/extension", techNote.createTechNoteFromExtension);
 
-// router.post("/create/link", techNote.createTechNoteLink);
+router.post("/create/link", techNote.createTechNoteFromLink);
 
 module.exports = router;
