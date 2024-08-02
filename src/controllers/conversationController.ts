@@ -15,10 +15,4 @@ exports.getMessagesByConversationId = async (req: Request, res: Response) => {
     return [];
   }
   return res.status(200).send(data);
-
-  if (error) {
-    console.error("Error fetching messages:", error);
-    return [];
-  }
-  return res.status(200).send(data);
 };

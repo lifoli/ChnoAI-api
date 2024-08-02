@@ -4,7 +4,7 @@ import { User } from "../types/User";
 
 exports.getInfoByUserId = async (req: Request, res: Response) => {
   const userId = req.params.userId;
-  console.log("🚀 ~ exports.getInfoByUserId= ~ userId:", userId);
+
   const { data, error } = await supabase
     .from("users")
     .select(`*`)
