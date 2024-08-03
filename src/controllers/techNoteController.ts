@@ -146,14 +146,15 @@ async function runHeadlessBrowser(url: string) {
   if (!url.startsWith("https://chatgpt.com/share/")) {
     throw new Error("Invalid URL");
   }
-
+  console.log("퍼페티어 시작1");
   const browser = await puppeteer.launch({
     headless: true, // 헤드리스 모드 활성화
     args: ["--no-sandbox", "--disable-setuid-sandbox"], // 샌드박스 비활성화 (속도 향상)
   });
+  console.log("페이지 브라우징?2");
 
   const page = await browser.newPage();
-
+  console.log("3");
   // 불필요한 리소스 차단
   await page.setRequestInterception(true);
   page.on("request", (request) => {
@@ -168,14 +169,14 @@ async function runHeadlessBrowser(url: string) {
       request.continue();
     }
   });
-
+  console.log("4");
   try {
     await page.goto(url, { waitUntil: "domcontentloaded" }); // DOMContentLoaded 대기
 
     const chatUrl = await page.evaluate(() => window.location.href);
 
     const chatRoomTitle = await page.$eval("h1", (el) => el.textContent);
-
+    console.log("5");
     const userMessages = await page.$$eval(
       '[data-message-author-role="user"]',
       (elements) => elements.map((el) => el.textContent)
@@ -184,7 +185,7 @@ async function runHeadlessBrowser(url: string) {
       '[data-message-author-role="assistant"]',
       (elements) => elements.map((el) => el.textContent)
     );
-
+    console.log("6");
     const data = userMessages.map((question, index) => ({
       question: question || "",
       answer: assistantMessages[index] || "",
@@ -208,7 +209,7 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       .status(400)
       .json({ message: "Missing required fields: user_id or url" });
   }
-
+  console.log("작업 시작");
   try {
     const { chatUrl, chatRoomTitle, data } = await runHeadlessBrowser(url);
     console.log("🚀 ~ data:", data);
