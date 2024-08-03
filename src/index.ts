@@ -6,6 +6,7 @@ import cors from "cors";
 import morgan from "morgan";
 import moment from "moment";
 import cookieParser from "cookie-parser";
+
 import { body, validationResult } from "express-validator";
 
 dotenv.config();
@@ -25,9 +26,9 @@ app.get("/", (req: Request, res: Response) => {
   res.send("Hello World!");
 });
 
-const technoteRouter = require("./routes/technote");
-const conversationRouter = require("./routes/conversation");
-const userRouter = require("./routes/user");
+import technoteRouter from "./routes/technote";
+import conversationRouter from "./routes/conversation";
+import userRouter from "./routes/user";
 
 app.use("/user", userRouter);
 app.use("/technote", technoteRouter);

@@ -1,6 +1,5 @@
 import express from "express";
-
-const conversation = require("../controllers/conversationController");
+import * as conversation from "../controllers/conversationController";
 
 const router = express.Router();
 
@@ -9,4 +8,4 @@ router.get(
   conversation.getMessagesByConversationId
 );
 
-module.exports = router;
+export default router;

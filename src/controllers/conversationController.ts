@@ -2,7 +2,10 @@ import { Request, Response } from "express";
 
 import supabase from "../models/db";
 
-exports.getMessagesByConversationId = async (req: Request, res: Response) => {
+export const getMessagesByConversationId = async (
+  req: Request,
+  res: Response
+) => {
   const conversationId = req.params.conversationId;
   const { data, error } = await supabase
     .from("messages")

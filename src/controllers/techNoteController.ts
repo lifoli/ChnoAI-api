@@ -4,30 +4,30 @@ import supabase from "../models/db";
 import bodyParser from "body-parser";
 import puppeteer from "puppeteer";
 
-// import { NotionAPI } from "notion-client";
+import { NotionAPI } from "notion-client";
 
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// export const getTechNoteNotionById = async (req: Request, res: Response) => {
-//   try {
-//     const notion = new NotionAPI();
-//     const techNoteId = req.params.techNoteId;
-//     const recordMap = await notion.getPage(techNoteId);
-//     res.json(recordMap);
+export const getTechNoteNotionById = async (req: Request, res: Response) => {
+  try {
+    const notion = new NotionAPI();
+    const techNoteId = req.params.techNoteId;
+    const recordMap = await notion.getPage(techNoteId);
+    res.json(recordMap);
 
-//     // if (!techNote) {
-//     //   return res.status(404).json({ message: "TechNote not found" });
-//     // }
-//     // res.json(techNote);
-//   } catch (error) {
-//     const err = error as Error;
-//     res.status(500).json({ message: err.message });
-//   }
-// };
+    // if (!techNote) {
+    //   return res.status(404).json({ message: "TechNote not found" });
+    // }
+    // res.json(techNote);
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ message: err.message });
+  }
+};
 
-exports.test = (req: Request, res: Response) => {
+export const test = (req: Request, res: Response) => {
   console.log("test");
   return res.status(200).send({ message: "Product not found" });
 };
@@ -44,7 +44,10 @@ exports.test = (req: Request, res: Response) => {
 //   }
 // };
 
-exports.createTechNoteFromExtension = async (req: Request, res: Response) => {
+export const createTechNoteFromExtension = async (
+  req: Request,
+  res: Response
+) => {
   const { user_id, title, data } = req.body;
 
   if (!user_id || !data) {
@@ -128,7 +131,7 @@ exports.createTechNoteFromExtension = async (req: Request, res: Response) => {
   }
 };
 
-exports.gettechNoteListByUserId = async (req: Request, res: Response) => {
+export const gettechNoteListByUserId = async (req: Request, res: Response) => {
   const userId = req.params.userId;
   // tech_notes 테이블과 conversation 테이블을 조인해서 user_id로 필터링
 
@@ -227,7 +230,7 @@ const limiter = new Bottleneck({
   minTime: 200, // 각 요청 사이의 최소 시간 간격 (ms)
 });
 
-exports.createTechNoteFromLink = async (req: Request, res: Response) => {
+export const createTechNoteFromLink = async (req: Request, res: Response) => {
   const { user_id, url } = req.body;
 
   if (!user_id || !url) {
