@@ -245,11 +245,10 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
   }
   console.log("작업 시작");
   try {
-    // Bottleneck 리미터를 사용하여 runHeadlessBrowser 함수를 호출합니다.
-    const { chatUrl, chatRoomTitle, data } = await limiter.schedule(() =>
-      runHeadlessBrowser(url)
-    );
-    console.log("🚀 ~ data:", data);
+    // // Bottleneck 리미터를 사용하여 runHeadlessBrowser 함수를 호출합니다.
+    // const { chatUrl, chatRoomTitle, data } = await limiter.schedule(() =>
+    //   runHeadlessBrowser(url)
+    // );
 
     // conversations 테이블에 데이터 추가
     const { data: conversationData, error: conversationError } = await supabase
@@ -258,7 +257,7 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
         {
           user_id,
           source: "direct_link",
-          link: chatUrl,
+          link: url,
         },
       ])
       .select("*")
@@ -270,21 +269,20 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Error inserting conversation" });
     }
 
-    const messages = data.flatMap(({ question, answer }, index) => [
-      {
-        message_type: "question",
-        message_content: question,
-        conversation_id: conversationData.id,
-        sequence_number: index * 2 + 1,
-      },
-      {
-        message_type: "answer",
-        message_content: answer,
-        conversation_id: conversationData.id,
-        sequence_number: index * 2 + 2,
-      },
-    ]);
-    console.log("🚀 ~ messages ~ messages:", messages);
+    // const messages = data.flatMap(({ question, answer }, index) => [
+    //   {
+    //     message_type: "question",
+    //     message_content: question,
+    //     conversation_id: conversationData.id,
+    //     sequence_number: index * 2 + 1,
+    //   },
+    //   {
+    //     message_type: "answer",
+    //     message_content: answer,
+    //     conversation_id: conversationData.id,
+    //     sequence_number: index * 2 + 2,
+    //   },
+    // ]);
 
     // tech_notes 테이블에 데이터 추가
     const { data: techNoteData, error: techNoteError } = await supabase
@@ -292,7 +290,8 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       .insert([
         {
           conversation_id: conversationData.id,
-          title: chatRoomTitle,
+          // 현재 날짜, 시간을 기준으로 제목 생성
+          title: `Chat Room - ${new Date().toLocaleString()}`,
           note_content: "",
           is_completed: false,
         },
@@ -306,15 +305,15 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
     }
 
     // messages 테이블에 데이터 추가
-    const { data: messagesData, error: messagesError } = await supabase
-      .from("messages")
-      .insert(messages)
-      .select("*");
+    // const { data: messagesData, error: messagesError } = await supabase
+    //   .from("messages")
+    //   .insert(messages)
+    //   .select("*");
 
-    if (messagesError) {
-      console.error("Error inserting messages:", messagesError);
-      return res.status(500).json({ message: "Error inserting messages" });
-    }
+    // if (messagesError) {
+    //   console.error("Error inserting messages:", messagesError);
+    //   return res.status(500).json({ message: "Error inserting messages" });
+    // }
 
     return res.status(201).json({ techNoteData });
   } catch (error) {
