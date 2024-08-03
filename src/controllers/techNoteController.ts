@@ -32,6 +32,18 @@ exports.test = (req: Request, res: Response) => {
   return res.status(200).send({ message: "Product not found" });
 };
 
+// // app.get("/api/notion/:pageId", async (req, res)
+// exports.getTechNoteNotionByPageId = async (req: Request, res: Response) => {
+//   const notion = new NotionAPI();
+//   const { pageId } = req.params;
+//   try {
+//     const recordMap = await notion.getPage(pageId);
+//     res.json(recordMap);
+//   } catch (error) {
+//     res.status(500).json({ error: error });
+//   }
+// };
+
 exports.createTechNoteFromExtension = async (req: Request, res: Response) => {
   const { user_id, raw_content } = req.body;
 
@@ -142,6 +154,9 @@ exports.gettechNoteListByUserId = async (req: Request, res: Response) => {
 };
 
 // service함수로 이전
+
+import Bottleneck from "bottleneck";
+
 async function runHeadlessBrowser(url: string) {
   if (!url.startsWith("https://chatgpt.com/share/")) {
     throw new Error("Invalid URL");
@@ -154,8 +169,8 @@ async function runHeadlessBrowser(url: string) {
       "--disable-setuid-sandbox",
       "--disable-dev-shm-usage",
     ], // 샌드박스 비활성화 및 공유 메모리 사용 비활성화
-    executablePath:
-      process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
+    // executablePath:
+    //   process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
   });
   console.log(
     "Chromium executable path:",
@@ -214,6 +229,11 @@ async function runHeadlessBrowser(url: string) {
     await browser.close();
   }
 }
+// Bottleneck 리미터 설정
+const limiter = new Bottleneck({
+  maxConcurrent: 5, // 동시에 실행될 Puppeteer 인스턴스 수
+  minTime: 200, // 각 요청 사이의 최소 시간 간격 (ms)
+});
 
 exports.createTechNoteFromLink = async (req: Request, res: Response) => {
   const { user_id, url } = req.body;
@@ -225,7 +245,10 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
   }
   console.log("작업 시작");
   try {
-    const { chatUrl, chatRoomTitle, data } = await runHeadlessBrowser(url);
+    // Bottleneck 리미터를 사용하여 runHeadlessBrowser 함수를 호출합니다.
+    const { chatUrl, chatRoomTitle, data } = await limiter.schedule(() =>
+      runHeadlessBrowser(url)
+    );
     console.log("🚀 ~ data:", data);
 
     // conversations 테이블에 데이터 추가
