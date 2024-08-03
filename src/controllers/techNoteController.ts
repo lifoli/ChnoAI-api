@@ -290,8 +290,15 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       .insert([
         {
           conversation_id: conversationData.id,
-          // 현재 날짜, 시간을 기준으로 제목 생성
-          title: `Chat Room - ${new Date().toLocaleString()}`,
+          // 현재 날짜, 시간을 기준으로 제목 생성(영어로)
+          title: new Date().toLocaleString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+          }),
           note_content: "",
           is_completed: false,
         },
