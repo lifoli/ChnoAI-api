@@ -45,9 +45,9 @@ exports.test = (req: Request, res: Response) => {
 // };
 
 exports.createTechNoteFromExtension = async (req: Request, res: Response) => {
-  const { user_id, raw_content } = req.body;
+  const { user_id, title, data } = req.body;
 
-  if (!user_id || !raw_content) {
+  if (!user_id || !data) {
     return res
       .status(400)
       .json({ message: "Missing required fields: user_id or raw_content" });
@@ -60,7 +60,6 @@ exports.createTechNoteFromExtension = async (req: Request, res: Response) => {
       .insert([
         {
           user_id,
-          conversation_content: raw_content,
           source: "chrome_extension",
         },
       ])
@@ -71,33 +70,26 @@ exports.createTechNoteFromExtension = async (req: Request, res: Response) => {
       console.error("Error inserting conversation:", conversationError);
       return res.status(500).json({ message: "Error inserting conversation" });
     }
-    // TODO: 메세지 생성 로직 추가
-    const messages = [
-      {
-        message_type: "question",
-        message_content: "conversation로직 들어갈 예정1",
-        conversation_id: conversationData.id,
-        sequence_number: 1,
-      },
-      {
-        message_type: "answer",
-        message_content: "conversation로직 들어갈 예정2",
-        conversation_id: conversationData.id,
-        sequence_number: 2,
-      },
-      {
-        message_type: "question",
-        message_content: "conversation로직 들어갈 예정3",
-        conversation_id: conversationData.id,
-        sequence_number: 3,
-      },
-      {
-        message_type: "answer",
-        message_content: "conversation로직 들어갈 예정4",
-        conversation_id: conversationData.id,
-        sequence_number: 4,
-      },
-    ];
+
+    const messages = data.flatMap(
+      (
+        { question, answer }: { question: string; answer: string },
+        index: number
+      ) => [
+        {
+          message_type: "question",
+          message_content: question,
+          conversation_id: conversationData.id,
+          sequence_number: index * 2 + 1,
+        },
+        {
+          message_type: "answer",
+          message_content: answer,
+          conversation_id: conversationData.id,
+          sequence_number: index * 2 + 2,
+        },
+      ]
+    );
 
     // tech_notes 테이블에 데이터 추가
     const { data: techNoteData, error: techNoteError } = await supabase
