@@ -6,7 +6,7 @@ import * as techNote from "../controllers/techNoteController";
 import * as conversation from "../controllers/conversationController";
 const router = express.Router();
 
-// router.get("/notion/:techNoteId", techNote.getTechNoteNotionById);
+router.get("/notion/:techNoteId", techNote.getTechNoteNotionById);
 
 router.get("/all/:userId", techNote.gettechNoteListByUserId);
 
