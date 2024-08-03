@@ -36,6 +36,8 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxtst6 \
     xdg-utils \
+    gnupg \
+    wget \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 

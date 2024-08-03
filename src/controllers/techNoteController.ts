@@ -149,12 +149,23 @@ async function runHeadlessBrowser(url: string) {
   console.log("퍼페티어 시작1");
   const browser = await puppeteer.launch({
     headless: true, // 헤드리스 모드 활성화
-    args: ["--no-sandbox", "--disable-setuid-sandbox"], // 샌드박스 비활성화 (속도 향상)
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--disable-dev-shm-usage",
+    ], // 샌드박스 비활성화 및 공유 메모리 사용 비활성화
+    executablePath:
+      process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
   });
+  console.log(
+    "Chromium executable path:",
+    process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium"
+  );
   console.log("페이지 브라우징?2");
 
   const page = await browser.newPage();
-  console.log("3");
+  console.log("새 페이지 생성 완료 3");
+
   // 불필요한 리소스 차단
   await page.setRequestInterception(true);
   page.on("request", (request) => {
@@ -169,14 +180,16 @@ async function runHeadlessBrowser(url: string) {
       request.continue();
     }
   });
-  console.log("4");
+  console.log("리소스 차단 설정 완료 4");
+
   try {
     await page.goto(url, { waitUntil: "domcontentloaded" }); // DOMContentLoaded 대기
 
     const chatUrl = await page.evaluate(() => window.location.href);
 
     const chatRoomTitle = await page.$eval("h1", (el) => el.textContent);
-    console.log("5");
+    console.log("페이지 이동 완료 5");
+
     const userMessages = await page.$$eval(
       '[data-message-author-role="user"]',
       (elements) => elements.map((el) => el.textContent)
@@ -185,7 +198,8 @@ async function runHeadlessBrowser(url: string) {
       '[data-message-author-role="assistant"]',
       (elements) => elements.map((el) => el.textContent)
     );
-    console.log("6");
+    console.log("메시지 수집 완료 6");
+
     const data = userMessages.map((question, index) => ({
       question: question || "",
       answer: assistantMessages[index] || "",
