@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import supabase from "../models/db";
 import { User } from "../types/User";
 
-export const getInfoByUserId = async (req: Request, res: Response) => {
+exports.getInfoByUserId = async (req: Request, res: Response) => {
   const userId = req.params.userId;
 
   const { data, error } = await supabase
@@ -18,7 +18,7 @@ export const getInfoByUserId = async (req: Request, res: Response) => {
   return res.status(200).send(data);
 };
 
-export const createUser = async (req: Request, res: Response) => {
+exports.createUser = async (req: Request, res: Response) => {
   const { user } = req.body;
   const { nbf, jti, exp, iat, ...newUser } = user;
 
