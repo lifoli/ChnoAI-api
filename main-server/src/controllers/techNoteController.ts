@@ -1,6 +1,5 @@
 import { Request, Response } from "express";
 import supabase from "../models/db";
-import puppeteer from "puppeteer";
 import axios from "axios";
 
 exports.getTechNoteNotionByPageId = async (req: Request, res: Response) => {
@@ -134,86 +133,6 @@ exports.gettechNoteListByUserId = async (req: Request, res: Response) => {
 
 // service함수로 이전
 
-import Bottleneck from "bottleneck";
-
-async function runHeadlessBrowser(url: string) {
-  if (!url.startsWith("https://chatgpt.com/share/")) {
-    throw new Error("Invalid URL");
-  }
-  console.log("퍼페티어 시작1");
-  const browser = await puppeteer.launch({
-    headless: true, // 헤드리스 모드 활성화
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-    ], // 샌드박스 비활성화 및 공유 메모리 사용 비활성화
-    // executablePath:
-    //   process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium",
-  });
-  console.log(
-    "Chromium executable path:",
-    process.env.PUPPETEER_EXECUTABLE_PATH || "/usr/bin/chromium"
-  );
-  console.log("페이지 브라우징?2");
-
-  const page = await browser.newPage();
-  console.log("새 페이지 생성 완료 3");
-
-  // 불필요한 리소스 차단
-  await page.setRequestInterception(true);
-  page.on("request", (request) => {
-    const resourceType = request.resourceType();
-    if (
-      resourceType === "image" ||
-      resourceType === "stylesheet" ||
-      resourceType === "font"
-    ) {
-      request.abort();
-    } else {
-      request.continue();
-    }
-  });
-  console.log("리소스 차단 설정 완료 4");
-
-  try {
-    await page.goto(url, { waitUntil: "domcontentloaded" }); // DOMContentLoaded 대기
-
-    const chatUrl = await page.evaluate(() => window.location.href);
-
-    const chatRoomTitle = await page.$eval("h1", (el) => el.textContent);
-    console.log("페이지 이동 완료 5");
-
-    const userMessages = await page.$$eval(
-      '[data-message-author-role="user"]',
-      (elements) => elements.map((el) => el.textContent)
-    );
-    const assistantMessages = await page.$$eval(
-      '[data-message-author-role="assistant"]',
-      (elements) => elements.map((el) => el.textContent)
-    );
-    console.log("메시지 수집 완료 6");
-
-    const data = userMessages.map((question, index) => ({
-      question: question || "",
-      answer: assistantMessages[index] || "",
-    }));
-
-    console.log("Chat URL:", chatUrl, "Chat Room Title:", chatRoomTitle, data);
-    return { chatUrl, chatRoomTitle, data };
-  } catch (error) {
-    console.error("Error occurred:", error);
-    throw error;
-  } finally {
-    await browser.close();
-  }
-}
-// Bottleneck 리미터 설정
-const limiter = new Bottleneck({
-  maxConcurrent: 5, // 동시에 실행될 Puppeteer 인스턴스 수
-  minTime: 200, // 각 요청 사이의 최소 시간 간격 (ms)
-});
-
 exports.createTechNoteFromLink = async (req: Request, res: Response) => {
   const { user_id, url } = req.body;
 
@@ -247,21 +166,47 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       console.error("Error inserting conversation:", conversationError);
       return res.status(500).json({ message: "Error inserting conversation" });
     }
+    const aiServerContainerName: string =
+      process.env.NODE_ENV === "development" ? "ai-server-dev" : "ai-server";
+    const conversation: {
+      data: any[];
+      chatUrl: string;
+      chatRoomTitle: string;
+    } | null = await axios
+      .get(`http://${aiServerContainerName}:3000/process-url?url=${url}`)
+      .then((response) => {
+        return {
+          data: response.data.data,
+          chatUrl: response.data.chatUrl,
+          chatRoomTitle: response.data.chatRoomTitle,
+        };
+      })
+      .catch((error) => {
+        console.error("Error fetching Notion data:", error);
+        return null;
+      });
 
-    // const messages = data.flatMap(({ question, answer }, index) => [
-    //   {
-    //     message_type: "question",
-    //     message_content: question,
-    //     conversation_id: conversationData.id,
-    //     sequence_number: index * 2 + 1,
-    //   },
-    //   {
-    //     message_type: "answer",
-    //     message_content: answer,
-    //     conversation_id: conversationData.id,
-    //     sequence_number: index * 2 + 2,
-    //   },
-    // ]);
+    console.log(
+      "🚀 ~ exports.createTechNoteFromLink= ~ conversation:",
+      conversation
+    );
+
+    const messages = conversation?.data.flatMap(
+      ({ question, answer }, index) => [
+        {
+          message_type: "question",
+          message_content: question,
+          conversation_id: conversationData.id,
+          sequence_number: index * 2 + 1,
+        },
+        {
+          message_type: "answer",
+          message_content: answer,
+          conversation_id: conversationData.id,
+          sequence_number: index * 2 + 2,
+        },
+      ]
+    );
 
     // tech_notes 테이블에 데이터 추가
     const { data: techNoteData, error: techNoteError } = await supabase
@@ -270,14 +215,7 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
         {
           conversation_id: conversationData.id,
           // 현재 날짜, 시간을 기준으로 제목 생성(영어로)
-          title: new Date().toLocaleString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "numeric",
-            second: "numeric",
-          }),
+          title: conversation?.chatRoomTitle,
           note_content: "",
           is_completed: false,
         },
@@ -291,15 +229,15 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
     }
 
     // messages 테이블에 데이터 추가
-    // const { data: messagesData, error: messagesError } = await supabase
-    //   .from("messages")
-    //   .insert(messages)
-    //   .select("*");
+    const { data: messagesData, error: messagesError } = await supabase
+      .from("messages")
+      .insert(messages)
+      .select("*");
 
-    // if (messagesError) {
-    //   console.error("Error inserting messages:", messagesError);
-    //   return res.status(500).json({ message: "Error inserting messages" });
-    // }
+    if (messagesError) {
+      console.error("Error inserting messages:", messagesError);
+      return res.status(500).json({ message: "Error inserting messages" });
+    }
 
     return res.status(201).json({ techNoteData });
   } catch (error) {
