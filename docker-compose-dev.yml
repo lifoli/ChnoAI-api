@@ -30,3 +30,13 @@ services:
     volumes:
       - ./notion-server:/usr/src/app
       - /usr/src/app/node_modules
+  ai-server-dev:
+    build:
+      context: ./ai-server
+      dockerfile: Dockerfile
+    volumes:
+      - ./ai-server:/app
+    ports:
+      - "3000:3000"
+    environment:
+      - FLASK_ENV=development

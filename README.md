@@ -281,3 +281,11 @@ cd /path/to/docker-compose-directory
 docker-compose -f docker-compose-dev.yml up --build
 
 ```
+
+pip freeze > requirements.txt
+docker build -t ai-server-dev-image -f Dockerfile .
+docker run -p 3000:3000 --name ai-server-dev-container --env-file ../.env ai-server-dev-image
+
+docker build -t ai-server-dev-image -f Dockerfile-prod .
+docker run -p 3000:3000 --name ai-server-container --env-file ../.env ai-server-image
+pip freeze > requirements.txt

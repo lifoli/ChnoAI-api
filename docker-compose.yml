@@ -21,3 +21,14 @@ services:
       - NODE_ENV=production
     env_file:
       - .env
+
+  ai-server:
+    build:
+      context: ./ai-server
+      dockerfile: Dockerfile-prod
+    ports:
+      - "3000:3000"
+    environment:
+      - FLASK_ENV=production
+    env_file:
+      - .env

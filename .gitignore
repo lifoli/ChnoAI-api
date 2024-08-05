@@ -235,3 +235,64 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 .vercel
+
+#########################################################
+
+# Python 가상환경
+venv/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  주의: PyInstaller는 이 폴더를 'build 폴더'로 사용하므로 
+#  변경하거나 주석 처리할 수 있습니다.
+build/
+
+# pipenv
+pipenv.lock
+
+# virtualenv
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# pytest
+.cache
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# Flask files
+instance/
+.webassets-cache
