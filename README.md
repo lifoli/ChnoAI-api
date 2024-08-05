@@ -165,7 +165,7 @@ graph TD;
     A[사용자] -->|HTTP 요청| B(main-server)
     B -->|데이터베이스 요청| C[Database]
     B -->|Notion API 요청| D[Notion-server]
-    D -->|Notion 데이터 처리| E[Notion API]]
+    D -->|Notion 데이터 처리| E[Notion API]
 
 ```
 
@@ -262,7 +262,7 @@ docker-compose up --build
 
 ```
 
-### 개발용 docker-compose 실행 명령어\
+### 개발용 docker-compose 실행 명령어
 
 1. docker-compose 파일이 있는 디렉토리로 이동
 
