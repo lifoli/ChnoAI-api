@@ -1,48 +1,35 @@
 import { Request, Response } from "express";
-import express from "express";
 import supabase from "../models/db";
-import bodyParser from "body-parser";
 import puppeteer from "puppeteer";
+import axios from "axios";
 
-// import { NotionAPI } from "notion-client";
-
-import cors from "cors";
-import path from "path";
-import { fileURLToPath } from "url";
-
-// export const getTechNoteNotionById = async (req: Request, res: Response) => {
-//   try {
-//     const notion = new NotionAPI();
-//     const techNoteId = req.params.techNoteId;
-//     const recordMap = await notion.getPage(techNoteId);
-//     res.json(recordMap);
-
-//     // if (!techNote) {
-//     //   return res.status(404).json({ message: "TechNote not found" });
-//     // }
-//     // res.json(techNote);
-//   } catch (error) {
-//     const err = error as Error;
-//     res.status(500).json({ message: err.message });
-//   }
-// };
+exports.getTechNoteNotionByPageId = async (req: Request, res: Response) => {
+  try {
+    const notionPageId: string = req.params.notionPageId;
+    const notionServerContainerName: string =
+      process.env.NODE_ENV === "development"
+        ? "notion-server-dev"
+        : "notion-server";
+    const recordMap = await axios
+      .get(`http://${notionServerContainerName}:8000/notion/${notionPageId}`)
+      .then((response) => {
+        return response.data;
+      })
+      .catch((error) => {
+        console.error("Error fetching Notion data:", error);
+        return null;
+      });
+    res.status(200).json({ notionPageData: recordMap });
+  } catch (error) {
+    const err = error as Error;
+    res.status(500).json({ message: err.message });
+  }
+};
 
 exports.test = (req: Request, res: Response) => {
   console.log("test");
   return res.status(200).send({ message: "Product not found" });
 };
-
-// // app.get("/api/notion/:pageId", async (req, res)
-// exports.getTechNoteNotionByPageId = async (req: Request, res: Response) => {
-//   const notion = new NotionAPI();
-//   const { pageId } = req.params;
-//   try {
-//     const recordMap = await notion.getPage(pageId);
-//     res.json(recordMap);
-//   } catch (error) {
-//     res.status(500).json({ error: error });
-//   }
-// };
 
 exports.createTechNoteFromExtension = async (req: Request, res: Response) => {
   const { user_id, title, data } = req.body;

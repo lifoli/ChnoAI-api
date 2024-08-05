@@ -30,10 +30,10 @@ RUN echo "module.exports = { \
       NODE_ENV: 'development', \
     }, \
   }], \
-};" > ecosystem.config.js
+};" > ecosystem.config.cjs
 
 # 포트 개방
 EXPOSE 8000
 
 # PM2로 서버 실행
-CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+CMD ["pm2-runtime", "start", "ecosystem.config.cjs"]

@@ -6,7 +6,7 @@ const techNote = require("../controllers/techNoteController");
 const conversation = require("../controllers/conversationController");
 const router = express.Router();
 
-// router.get("/notion/:techNoteId", techNote.getTechNoteNotionById);
+router.get("/notion/:notionPageId", techNote.getTechNoteNotionByPageId);
 
 router.get("/all/:userId", techNote.gettechNoteListByUserId);
 
