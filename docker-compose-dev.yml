@@ -1,12 +1,32 @@
 version: "3"
 services:
-  app:
+  main-server-dev:
     build:
-      context: .
+      context: ./main-server
+      dockerfile: Dockerfile
       args:
         NODE_ENV: development
     volumes:
-      - .:/usr/src/app
+      - ./main-server:/usr/src/app # main-server 디렉토리만 매핑
+      - /usr/src/app/node_modules # node_modules 디렉토리 유지
     ports:
       - "8080:8080"
-    command: npx nodemon --exec npx ts-node src/index.ts
+    environment:
+      - NODE_ENV=development
+    command: ["npx", "nodemon", "--exec", "npx", "ts-node", "src/index.ts"]
+
+  notion-server-dev:
+    build:
+      context: ./notion-server
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: development
+    ports:
+      - "8000:8000"
+    environment:
+      - NODE_ENV=development
+    env_file:
+      - .env
+    volumes:
+      - ./notion-server:/usr/src/app
+      - /usr/src/app/node_modules

@@ -1,0 +1,39 @@
+# 베이스 이미지로 Node 18 사용
+FROM node:18
+
+# 작업 디렉토리 설정
+WORKDIR /usr/src/app
+
+# 의존성 파일 복사
+COPY package*.json ./
+
+# 의존성 설치
+RUN npm install --only=production
+
+# PM2 설치
+RUN npm install pm2 -g
+
+# 앱 소스 복사
+COPY . .
+
+# PM2 설정 파일 생성
+RUN echo "module.exports = { \
+  apps: [{ \
+    name: 'my-server', \
+    script: 'src/index.js', \
+    instances: 'max', \
+    exec_mode: 'cluster', \
+    env: { \
+      NODE_ENV: 'production', \
+    }, \
+    env_development: { \
+      NODE_ENV: 'development', \
+    }, \
+  }], \
+};" > ecosystem.config.js
+
+# 포트 개방
+EXPOSE 8000
+
+# PM2로 서버 실행
+CMD ["pm2-runtime", "start", "ecosystem.config.js"]

@@ -44,11 +44,8 @@ RUN npm install
 # Copy application code to the container image.
 COPY . .
 
-# Build the TypeScript code
-RUN npm run build
-
 # Expose port 8080
 EXPOSE 8080
 
-# Run the compiled code
-CMD ["node", "dist/index.js"]
+# Start the app with nodemon for development
+CMD ["npx", "nodemon", "--exec", "npx", "ts-node", "src/index.ts"]
