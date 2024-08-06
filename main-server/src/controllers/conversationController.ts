@@ -8,7 +8,7 @@ exports.getMessagesByConversationId = async (req: Request, res: Response) => {
     .from("messages")
     .select("*")
     .eq("conversation_id", conversationId)
-    .order("sequence", { ascending: true });
+    .order("sequence_number", { ascending: true });
 
   if (error) {
     console.error("Error fetching messages:", error);
