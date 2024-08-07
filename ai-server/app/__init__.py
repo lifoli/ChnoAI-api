@@ -2,8 +2,44 @@ from flask import Flask, request, jsonify, render_template
 import requests
 from playwright.sync_api import sync_playwright
 import sys
+import os
+from dotenv import load_dotenv
+from supabase import create_client, Client
+
+
+# 블루프린트 등록
+from .categorize_questions import categorize_questions_bp
+from .summarize_answers import summarize_answers_bp
+from .draft_implementation_blog import draft_implementation_blog_bp
+from .draft_debugging_blog import draft_debugging_blog_bp
+from .draft_explanation_blog import draft_explanation_blog_bp
+from .review_and_finalize_blog import review_and_finalize_blog_bp
+
+from .publish_to_notion import publish_to_notion_bp
+
+
+
+
 def create_app():
     app = Flask(__name__)
+
+    load_dotenv()
+
+    # 블루프린트 등록
+    app.register_blueprint(categorize_questions_bp, url_prefix='/')
+    app.register_blueprint(summarize_answers_bp, url_prefix='/')
+    app.register_blueprint(draft_implementation_blog_bp, url_prefix='/')
+    app.register_blueprint(draft_debugging_blog_bp, url_prefix='/')
+    app.register_blueprint(draft_explanation_blog_bp, url_prefix='/')
+    app.register_blueprint(review_and_finalize_blog_bp, url_prefix='/')
+    app.register_blueprint(publish_to_notion_bp, url_prefix='/')
+
+    # Supabase URL 및 Key 가져오기
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+    database: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
     @app.route('/')
     def index():
@@ -22,7 +58,6 @@ def create_app():
             return jsonify({"chatUrl": chat_url, "chatRoomTitle": chat_room_title, "data": data}), 200
         except Exception as e:
             return str(e), 500
-
 
 
     def run_headless_browser(url):
@@ -62,12 +97,137 @@ def create_app():
 
 
 
-    
+    @app.route('/generate-blog', methods=['POST'])
+    def test():
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        
+        # 1. 메시지 가져오기
+        questions = get_messages(conversation_id, message_type='question')
+        answers = get_messages(conversation_id, message_type='answer')
+        
+        # 2. 질문 카테고라이징
+        categorize_input = {
+            "conversation_id": conversation_id,
+            "questions": questions
+        }
+        categorize_response = requests.post('http://localhost:4000/categorize-questions', json=categorize_input, headers={"Content-Type": "application/json"})
+        print("")
+        if categorize_response.status_code != 200:
+            return jsonify({"error": "Error categorizing questions"}), categorize_response.status_code
+        
+        try:
+            categorized_questions = categorize_response.json().get('categorized_questions')
+        except ValueError:
+            return jsonify({"error": "Invalid JSON response from categorize-questions API"}), 500
+        
+        
+        # 3. 질문에 대한 답변 요약
+        summarize_input = {
+            "categorized_questions": categorized_questions,
+            "answers": answers
+        }
+        summarize_response = requests.post('http://localhost:4000/summarize-answers', json=summarize_input, headers={"Content-Type": "application/json"})
+        if summarize_response.status_code != 200:
+            return jsonify({"error": "Error summarizing answers"}), summarize_response.status_code
+        
+        try:
+            summarized_questions_answers = summarize_response.json().get('summarized_answers')
+        except ValueError:
+            return jsonify({"error": "Invalid JSON response from summarize-answers API"}), 500
+        
+        # 4. 블로그 초안 작성
+        drafts = []
+        for summarized_item in summarized_questions_answers:
+            for item in summarized_item:  # summarized_questions_answers가 이중 리스트 구조임
+                question_types = item['question_type']  # 'question_type' 리스트 직접 접근
 
+                draft_input = item
+
+                draft_response = None
+
+                if 'implementation' in question_types:
+                    draft_response = requests.post('http://localhost:4000/draft-implementation-blog', json=[draft_input], headers={"Content-Type": "application/json"})
+                    print("draft_implementation_blog response status: ", draft_response.status_code)
+                    if draft_response.status_code == 200:
+                        drafts.append(draft_response.json())
+                    else:
+                        print("Error in draft_implementation_blog: ", draft_response.json())
+
+                if 'error' in question_types:
+                    draft_response = requests.post('http://localhost:4000/draft-debugging-blog', json=[draft_input], headers={"Content-Type": "application/json"})
+                    print("draft_debugging_blog response status: ", draft_response.status_code)
+                    if draft_response.status_code == 200:
+                        drafts.append(draft_response.json())
+                    else:
+                        print("Error in draft_debugging_blog: ", draft_response.json())
+
+                if 'explanation' in question_types:
+                    draft_response = requests.post('http://localhost:4000/draft-explanation-blog', json=[draft_input], headers={"Content-Type": "application/json"})
+                    print("draft_explanation_blog response status: ", draft_response.status_code)
+                    if draft_response.status_code == 200:
+                        drafts.append(draft_response.json())
+                    else:
+                        print("Error in draft_explanation_blog: ", draft_response.json())
+
+        print("Drafts: ", drafts)
+
+        # drafts가 비어 있는지 확인하고 비어 있으면 이후 단계를 스킵
+        if not drafts:
+            return jsonify({"error": "No drafts generated"}), 400
+
+        # 5. 블로그 초안 취합 및 최종 블로그 포스트 작성
+        review_input = {
+            "drafts": drafts
+        }
+        review_response = requests.post('http://localhost:4000/review-and-finalize-blog', json=review_input)
+        
+        if review_response.status_code != 200:
+            return jsonify({"error": "Error reviewing and finalizing blog"}), review_response.status_code
+        
+        try:
+            final_blog = review_response.json().get('output')
+        except ValueError:
+            return jsonify({"error": "Invalid JSON response from review-and-finalize-blog API"}), 500
+        
+        # 6. 노션 페이지 생성 및 게시
+        notion_title = final_blog.get('title')
+        notion_content = final_blog.get('content')
+        question_type = final_blog.get('question_type', [])
+        requirements = final_blog.get('requirements', [])
+        framework_tags = final_blog.get('framework_tags', [])
+        language_tags = final_blog.get('language_tags', [])
+        os_tags = final_blog.get('os_tags', [])
+        tech_stack_tags = final_blog.get('tech_stack_tags', [])
+
+        notion_response = requests.post('http://localhost:4000/publish-to-notion', json={
+            "title": notion_title, 
+            "content": notion_content, 
+            "question_type": question_type,
+            "os_tags": os_tags,
+            "framework_tags": framework_tags,
+            "language_tags": language_tags,
+            "tech_stack_tags": tech_stack_tags
+        })
+        
+        if notion_response.status_code == 200:
+            notion_page_id = notion_response.json().get('page_id')
+            return jsonify({"message": "Blog generated and published to Notion successfully", "notion_page_id": notion_page_id}), 200
+        else:
+            return jsonify({"error": "Failed to publish to Notion", "details": notion_response.json()}), 500
+            
+    def get_messages(conversation_id, message_type):
+        response = database.table('messages').select('sequence_number, message_content').eq('conversation_id', conversation_id).eq('message_type', message_type).order('sequence_number').execute()
+        messages = response.data
+        return [{"sequence_number": msg["sequence_number"], "question_text": msg["message_content"]} for msg in messages]
 
 
     return app
 
+        
+
+
 if __name__ == '__main__':
     app = create_app()
     app.run(debug=True)
+    

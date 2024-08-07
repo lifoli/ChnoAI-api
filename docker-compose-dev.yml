@@ -34,9 +34,11 @@ services:
     build:
       context: ./ai-server
       dockerfile: Dockerfile
+    env_file:
+      - .env
     volumes:
       - ./ai-server:/app
     ports:
-      - "3000:3000"
+      - "4000:4000"
     environment:
       - FLASK_ENV=development

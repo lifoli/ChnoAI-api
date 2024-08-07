@@ -19,4 +19,4 @@ ENV FLASK_ENV=development
 ENV FLASK_APP=run.py
 
 # watchdog을 이용해 파일 변경 감지 및 플라스크 서버 실행
-CMD ["watchmedo", "auto-restart", "--patterns=*.py", "--recursive", "--", "flask", "run", "--host=0.0.0.0", "--port=3000"]
+CMD ["watchmedo", "auto-restart", "--patterns=*.py", "--recursive", "--", "flask", "run", "--host=0.0.0.0", "--port=4000"]

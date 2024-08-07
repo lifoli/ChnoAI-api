@@ -173,7 +173,7 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       chatUrl: string;
       chatRoomTitle: string;
     } | null = await axios
-      .get(`http://${aiServerContainerName}:3000/process-url?url=${url}`)
+      .get(`http://${aiServerContainerName}:4000/process-url?url=${url}`)
       .then((response) => {
         return {
           data: response.data.data,

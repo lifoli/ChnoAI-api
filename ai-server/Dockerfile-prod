@@ -22,4 +22,4 @@ ENV FLASK_ENV=production
 ENV FLASK_APP=run.py
 
 # Gunicorn을 사용한 서버 실행
-CMD ["gunicorn", "-b", "0.0.0.0:3000", "run:app"]
+CMD ["gunicorn", "-b", "0.0.0.0:4000", "run:app"]

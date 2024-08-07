@@ -284,8 +284,10 @@ docker-compose -f docker-compose-dev.yml up --build
 
 pip freeze > requirements.txt
 docker build -t ai-server-dev-image -f Dockerfile .
-docker run -p 3000:3000 --name ai-server-dev-container --env-file ../.env ai-server-dev-image
+docker run -p 4000:4000 --name ai-server-dev-container --env-file ../.env ai-server-dev-image
 
 docker build -t ai-server-dev-image -f Dockerfile-prod .
-docker run -p 3000:3000 --name ai-server-container --env-file ../.env ai-server-image
+docker run -p 4000:4000 --name ai-server-container --env-file ../.env ai-server-image
 pip freeze > requirements.txt
+
+watchmedo auto-restart --patterns="\*.py" --recursive -- flask run --host=0.0.0.0 --port=4000
