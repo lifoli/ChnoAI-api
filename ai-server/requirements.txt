@@ -16,5 +16,6 @@ pyee==11.1.0
 requests==2.32.3
 typing-extensions==4.12.2
 urllib3==2.2.2
+watchdog==4.0.1
 werkzeug==3.0.3
 zipp==3.19.2
