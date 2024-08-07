@@ -32,7 +32,11 @@ app.get("/", (req, res) => {
 });
 
 app.get("/notion/:pageId", async (req, res) => {
+  const notion_token = process.env.NOTION_TOKEN;
   const notion = new NotionAPI();
+  //   {
+  //   authToken: process.env.NOTION_TOKEN, // API 토큰을 여기에 입력
+  // }
   const { pageId } = req.params;
   try {
     const recordMap = await notion.getPage(pageId);
