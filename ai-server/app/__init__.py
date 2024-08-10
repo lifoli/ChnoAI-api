@@ -212,7 +212,9 @@ def create_app():
         
         if notion_response.status_code == 200:
             notion_page_id = notion_response.json().get('page_id')
-            return jsonify({"message": "Blog generated and published to Notion successfully", "notion_page_id": notion_page_id}), 200
+            notion_page_url = notion_response.json().get('url')
+            notion_page_public_url = notion_response.json().get('public_url')
+            return jsonify({"message": "Blog generated and published to Notion successfully", "notion_page_id": notion_page_id, "notion_page_url": notion_page_url, "notion_page_public_url": notion_page_public_url}), 200
         else:
             return jsonify({"error": "Failed to publish to Notion", "details": notion_response.json()}), 500
             

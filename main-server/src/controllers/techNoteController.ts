@@ -25,8 +25,11 @@ exports.getTechNoteNotionByPageId = async (req: Request, res: Response) => {
   }
 };
 
-exports.test = (req: Request, res: Response) => {
+exports.test = async (req: Request, res: Response) => {
   console.log("test");
+
+  await sendSlackNotification("test");
+
   return res.status(200).send({ message: "Product not found" });
 };
 
@@ -131,7 +134,21 @@ exports.gettechNoteListByUserId = async (req: Request, res: Response) => {
   return res.status(200).send(data);
 };
 
-// service함수로 이전
+async function sendSlackNotification(message: string) {
+  const webhookUrl =
+    "https://hooks.slack.com/services/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"; // 위에서 생성한 Webhook URL을 여기에 삽입합니다.
+
+  const payload = {
+    text: message, // 슬랙 채널에 보낼 메시지
+  };
+
+  try {
+    await axios.post(webhookUrl, payload); // 슬랙으로 HTTP POST 요청을 보냅니다.
+    console.log("슬랙 알림 전송 성공!");
+  } catch (error) {
+    console.error("슬랙 알림 전송 실패:", error);
+  }
+}
 
 exports.createTechNoteFromLink = async (req: Request, res: Response) => {
   const { user_id, url } = req.body;
@@ -186,11 +203,6 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
         return null;
       });
 
-    console.log(
-      "🚀 ~ exports.createTechNoteFromLink= ~ conversation:",
-      conversation
-    );
-
     const messages = conversation?.data.flatMap(
       ({ question, answer }, index) => [
         {
@@ -239,9 +251,94 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       return res.status(500).json({ message: "Error inserting messages" });
     }
 
-    return res.status(201).json({ techNoteData });
+    // init slack notification
+    await sendSlackNotification(`
+      새로운 기술 노트 요청 init
+      대화 id: ${conversationData.id}
+    `);
+
+    //www.notion.so/Team-LiFoli-873914f48a9f47d8912e0fb9b73fa557?pvs=4
+
+    https: return res.status(201).json({ techNoteData });
   } catch (error) {
     console.error("Unexpected error:", error);
     return res.status(500).json({ message: "An unexpected error occurred" });
+  }
+};
+
+exports.createNotionPage = async (req: Request, res: Response) => {
+  const { conversation_id } = req.params;
+  console.log(conversation_id);
+
+  try {
+    // 한국을 기준으로 현재 시각으로부터 6시간뒤의 시간을 deadline으로 string형태로 전달
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + 6);
+    const deadlineString = deadline.toLocaleString("ko-KR", {
+      timeZone: "Asia/Seoul",
+    });
+
+    const { data: conversation, error: conversationError } = await supabase
+      .from("conversations")
+      .select()
+      .eq("id", conversation_id)
+      .single();
+
+    const { data: user, error: userError } = await supabase
+      .from("users")
+      .select()
+      .eq("id", conversation?.user_id)
+      .single();
+
+    const { data: techNote, error: techNoteError } = await supabase
+      .from("tech_notes")
+      .select()
+      .eq("conversation_id", conversation_id)
+      .single();
+
+    const aiServerContainerName: string =
+      process.env.NODE_ENV === "development" ? "ai-server-dev" : "ai-server";
+
+    const result = await axios
+      .post(`http://${aiServerContainerName}:4000/generate-blog`, {
+        conversation_id: conversation_id,
+      })
+      .then((response) => {
+        return response.data;
+      })
+      .catch((error) => {
+        console.error("Error fetching Notion data:", error);
+        return null;
+      });
+
+    //supabase에서 tech_notes테이블의 notion_link항목을 result.notion_page_public_url로 업데이트
+    const { data: techNoteUpdateData, error: techNoteUpdateError } =
+      await supabase
+        .from("tech_notes")
+        .update({ notion_link: result.notion_page_public_url })
+        .eq("id", techNote?.id)
+        .single();
+
+    // 담당자설정, 생성된 technote id가 짝수일시 "이흥규", 홀수일시 "최영섭"으로 설정
+    const assignee = techNote?.id % 2 === 0 ? "이흥규" : "최영섭";
+
+    // 슬랙 알림 전송
+    await sendSlackNotification(`
+      새로운 기술 노트 요청.
+      대화 id: ${conversation_id}
+      유저명: ${user.name}
+      유저 이메일: ${user.email}
+      제목: ${techNote?.title}
+      대화창 링크: ${conversation?.chatUrl}
+      notion_page_id: ${result.notion_page_id}
+      notion_page_url: ${result.notion_page_url}
+      notion_page_public_url: ${result.notion_page_public_url}
+      마감기한: ${deadlineString}
+      담당자: ${assignee}
+    `);
+
+    return res.status(200);
+  } catch {
+    console.log("슬랙 알림 전송 실패");
   }
 };

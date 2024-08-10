@@ -156,8 +156,8 @@ def publish_to_notion():
         return jsonify({"error": "Title and content are required"}), 400
 
     response = create_notion_page(title, content, question_type, os_tags, framework_tags, language_tags, tech_stack_tags)
-    
+    print("hihi", response)
     if 'id' in response:
-        return jsonify({"message": "Notion page created successfully", "page_id": response['id']}), 200
+        return jsonify({"message": "Notion page created successfully", "page_id": response['id'], "url": response['url'], "public_url": response['public_url']}), 200
     else:
         return jsonify({"error": "Failed to create Notion page", "details": response}), 500

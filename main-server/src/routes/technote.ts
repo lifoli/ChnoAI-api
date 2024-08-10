@@ -14,4 +14,6 @@ router.post("/create/extension", techNote.createTechNoteFromExtension);
 
 router.post("/create/link", techNote.createTechNoteFromLink);
 
+router.post("/create/notionpage/:conversation_id", techNote.createNotionPage);
+
 module.exports = router;
