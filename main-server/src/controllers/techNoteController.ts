@@ -257,9 +257,7 @@ exports.createTechNoteFromLink = async (req: Request, res: Response) => {
       대화 id: ${conversationData.id}
     `);
 
-    //www.notion.so/Team-LiFoli-873914f48a9f47d8912e0fb9b73fa557?pvs=4
-
-    https: return res.status(201).json({ techNoteData });
+    return res.status(201).json({ techNoteData });
   } catch (error) {
     console.error("Unexpected error:", error);
     return res.status(500).json({ message: "An unexpected error occurred" });
@@ -336,8 +334,8 @@ exports.createNotionPage = async (req: Request, res: Response) => {
       마감기한: ${deadlineString}
       담당자: ${assignee}
     `);
-
-    return res.status(200);
+    console.log("작업끝");
+    return res.status(201).json({});
   } catch {
     console.log("슬랙 알림 전송 실패");
   }
