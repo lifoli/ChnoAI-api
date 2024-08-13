@@ -327,7 +327,7 @@ exports.createNotionPage = async (req: Request, res: Response) => {
       유저명: ${user.name}
       유저 이메일: ${user.email}
       제목: ${techNote?.title}
-      대화창 링크: ${conversation?.chatUrl}
+      대화창 링크: ${conversation?.link}
       notion_page_id: ${result.notion_page_id}
       notion_page_url: ${result.notion_page_url}
       notion_page_public_url: ${result.notion_page_public_url}
