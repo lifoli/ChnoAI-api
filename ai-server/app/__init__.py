@@ -217,17 +217,13 @@ def create_app():
             return jsonify({"message": "Blog generated and published to Notion successfully", "notion_page_id": notion_page_id, "notion_page_url": notion_page_url, "notion_page_public_url": notion_page_public_url}), 200
         else:
             return jsonify({"error": "Failed to publish to Notion", "details": notion_response.json()}), 500
-            
+
     def get_messages(conversation_id, message_type):
         response = database.table('messages').select('sequence_number, message_content').eq('conversation_id', conversation_id).eq('message_type', message_type).order('sequence_number').execute()
         messages = response.data
         return [{"sequence_number": msg["sequence_number"], "question_text": msg["message_content"]} for msg in messages]
 
-
     return app
-
-        
-
 
 if __name__ == '__main__':
     app = create_app()
