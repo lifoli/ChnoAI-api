@@ -240,6 +240,7 @@ $RECYCLE.BIN/
 
 # Python 가상환경
 venv/
+venv_dev/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
