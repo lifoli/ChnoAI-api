@@ -119,12 +119,12 @@ class QnAPairCreator:
                 formatted_chat_ex.append(qa_pair)
         return formatted_chat_ex
 
-# llm  = ChatOpenAI(model='gpt-4o-mini', temperature=0, max_tokens=None,
-#     timeout=None,
-#     max_retries=1,
-#     api_key = openai_api_key
-# )
-llm = ChatUpstage(model='solar-pro')
+llm  = ChatOpenAI(model='gpt-4o-mini', temperature=0, max_tokens=None,
+    timeout=None,
+    max_retries=1,
+    api_key = openai_api_key
+)
+# llm = ChatUpstage(model='solar-pro')
 
 # short code description 
 def describe_code_with_llm(code_snippet, model):
@@ -189,12 +189,11 @@ def extract_code_and_replace_with_description(qna_pair:QA, code_docs: List[CodeS
     question = qna_pair["q"]
     answer = qna_pair["a"]
     # 메세지 에서 코드 추출 및 설명 대체
-    question_with_code_replaced, question_code_docs = replace_code_with_description(question, code_docs, model, description_prefix)
-    answer_with_code_replaced, answer_code_docs = replace_code_with_description(answer, code_docs, model, description_prefix)
+    question_with_code_replaced = replace_code_with_description(question, code_docs, model, description_prefix)
+    answer_with_code_replaced = replace_code_with_description(answer, code_docs, model, description_prefix)
 
-    final_code_docs= question_code_docs + answer_code_docs
     
-    return question_with_code_replaced, answer_with_code_replaced, final_code_docs
+    return question_with_code_replaced, answer_with_code_replaced, code_docs
 
 
 # TODO : 좀더 좋은 prompt. in context example 추가해놓기
@@ -234,5 +233,4 @@ formatted_qna_data = qna_creator.create_qna_pairs()
 #usage for example
 processed_qna_pair, code_document = process_single_q_and_a(formatted_qna_data, llm)
 print("\nProcssed \n", processed_qna_pair[5])
-
 print("\nCode Document (추출된 코드):\n", "\n", code_document)
