@@ -200,6 +200,25 @@ def document_refinement(state: GraphState, model):
                 state['final_documents'][index] = updated.content
     return 0
 
+def replace_code_snippets(document, snippets_dict):
+    # Code_Snippet_1 및 Code_Snippet_2 키를 사용해 대체할 패턴을 찾음
+    for snippet_key in snippets_dict:
+        # 대체할 패턴을 정의
+        pattern = f"<-- {snippet_key}:.*?-->"
+        # document 내에서 해당 placeholder를 딕셔너리의 value로 대체
+        document = re.sub(pattern, snippets_dict[snippet_key], document)
+    
+    return document
+
+def make_blog(state: GraphState):
+    for index in state['final_documents']:
+        text = state['final_documents'][index]
+        t = replace_code_snippets(text, state['code_document'])
+        t = t.lstrip('#')
+        t = t.lstrip(' ')
+        state['final_documents'][index] = t
+        #print(t, end='\n\n')
+
 # 아래는 example9 데이터가 들어있는 json 파일에서 데이터를 불러와 테스트해보는 코드
 
 with open('data_for_writing.json', 'r', encoding='utf-8') as json_file:
@@ -219,8 +238,14 @@ graph_state = GraphState(
 make_final_documents(graph_state, model)
 # refinement
 document_refinement(graph_state, model)
+# 앞의 # 제거하고 코드도 실제 코드로 교체
+make_blog(graph_state)
 
 # eval
 precision, recall = overall_precision_recall(graph_state['final_documents'], loaded_data['EXAMPLE9']['GT_document'])
 print(f"Overall Precision: {precision:.2f}")
 print(f"Overall Recall: {recall:.2f}")
+
+# 전체 블로그 출력
+for text in list(graph_state['final_documents'].values()):
+    print(text, end='\n\n')
