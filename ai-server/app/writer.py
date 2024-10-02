@@ -185,7 +185,7 @@ def document_refinement(state: GraphState, model):
     document_refinement_2 = langfuse.get_prompt("document_refinement_2")
     for code_id in code_list:
         print(code_id, 'processing...')
-        indices_list, heading_list, whole_snippet = find_indices_and_snippet_with_code_id(code_id, graph_state['final_documents'])
+        indices_list, heading_list, whole_snippet = find_indices_and_snippet_with_code_id(code_id, state['final_documents'])
         indices = make_heading_list_for_prompt(heading_list)
 
         prompt = document_refinement_1.compile(code_snippet=whole_snippet, indices=indices)
@@ -194,10 +194,10 @@ def document_refinement(state: GraphState, model):
         for index in indices_list:
             print(index, '...')
             if selected != index:
-                doc = graph_state['final_documents'][index]
+                doc = state['final_documents'][index]
                 prompt = document_refinement_2.compile(code_snippet=whole_snippet, doc=doc)
                 updated = model.invoke(prompt)
-                graph_state['final_documents'][index] = updated.content
+                state['final_documents'][index] = updated.content
     return 0
 
 # 아래는 example9 데이터가 들어있는 json 파일에서 데이터를 불러와 테스트해보는 코드
