@@ -123,18 +123,81 @@ def remove_after_second_hashes(text):
         return '## ' + parts[1].strip()  # '##' 포함 첫 번째 부분만 반환
     return text  # '##'가 두 번 이상 없을 때는 원래 문자열 반환
 
-def make_final_documents(state: GraphState, model):
-    preprocessed_conversations = state['preprocessed_conversations']
+def make_final_documents(graph_state: GraphState, model):
+    preprocessed_conversations = graph_state['preprocessed_conversations']
     for i in range(len(preprocessed_conversations)):
         qa = preprocessed_conversations[i]
-        indices_for_qa = state['message_to_index_dict'][str(i)]
-        #print('QA', i, 'processing...')
+        indices_for_qa = graph_state['message_to_index_dict'][str(i)]
+        print('QA', i, 'processing...')
         for index in indices_for_qa:
-            document = state['final_documents'][index]
-            generated_doc, _ = write(model, qa, document)
-            updated_doc = remove_after_second_hashes(generated_doc.content)
-            state['final_documents'][index] = updated_doc
-            #print('doc', index, '...')
+            document = graph_state['final_documents'][index]
+            flag = True
+            while(flag):
+                generated_doc, _ = write(model, qa, document)
+                updated_doc = remove_after_second_hashes(generated_doc.content)
+                if not ('[Q]' in updated_doc):
+                    flag = False
+            graph_state['final_documents'][index] = updated_doc
+            print('doc', index, '...')
+    return 0
+
+# 최종 doc에서 중복되는 코드 삭제하는 부분 (refinement)
+'''
+입력: 
+code_document
+generated_document
+'''
+def extract_heading(text):
+    start_index = text.find("##")
+    if start_index == -1: return ""
+    
+    end_index = text.find("\n", start_index)
+    if end_index == -1: return text[start_index:].strip()
+    
+    return text[start_index+2:end_index].strip()
+
+def find_indices_and_snippet_with_code_id(code_id: str, doc_dict):
+    #입력 code id: Code_Snippet_1
+    #code snippet이 들어 있는 목차의 1. 인덱스 리스트, 2. 제목 리스트, 3. 설명을 포함한 전체 code snippet를 반환
+    pattern = fr"<-- {code_id}: .*? -->"
+    indices_list = []
+    heading_list = []
+    whole_snippet = 'None'
+    for key in doc_dict:
+        text = doc_dict[key]
+        match = re.search(pattern, text)
+        if match:
+            heading = extract_heading(text)
+            indices_list.append(key)
+            heading_list.append(heading)
+            whole_snippet = match.group().strip()
+    return indices_list, heading_list, whole_snippet
+
+def make_heading_list_for_prompt(heading_list):
+    text = ''
+    for heading in heading_list:
+        text = text + heading + '\n'
+    return text[:-1]
+
+def document_refinement(state: GraphState, model):
+    code_list = list(loaded_data['EXAMPLE9']['code_document'].keys()) # 이 부분 차후에 수정해야 한다. 현재는 GT 데이터로부터 가져옴
+    document_refinement_1 = langfuse.get_prompt("document_refinement_1")
+    document_refinement_2 = langfuse.get_prompt("document_refinement_2")
+    for code_id in code_list:
+        print(code_id, 'processing...')
+        indices_list, heading_list, whole_snippet = find_indices_and_snippet_with_code_id(code_id, graph_state['final_documents'])
+        indices = make_heading_list_for_prompt(heading_list)
+
+        prompt = document_refinement_1.compile(code_snippet=whole_snippet, indices=indices)
+        selected = model.invoke(prompt)
+        selected = selected.content
+        for index in indices_list:
+            print(index, '...')
+            if selected != index:
+                doc = graph_state['final_documents'][index]
+                prompt = document_refinement_2.compile(code_snippet=whole_snippet, doc=doc)
+                updated = model.invoke(prompt)
+                graph_state['final_documents'][index] = updated.content
     return 0
 
 # 아래는 example9 데이터가 들어있는 json 파일에서 데이터를 불러와 테스트해보는 코드
@@ -154,6 +217,8 @@ graph_state = GraphState(
 
 # write
 make_final_documents(graph_state, model)
+# refinement
+document_refinement(graph_state, model)
 
 # eval
 precision, recall = overall_precision_recall(graph_state['final_documents'], loaded_data['EXAMPLE9']['GT_document'])
