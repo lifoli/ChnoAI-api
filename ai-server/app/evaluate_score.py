@@ -6,6 +6,9 @@ from deepeval.test_case import LLMTestCase
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
 
+##To discuss : 비교 대상, 혹은 점수 기준. 만약 일정 점수 이상 넘지 못하면 다시 generate 하는걸로?
+
+
 def evaluate_bleu(reference, hypothesis):
     """Evaluates BLEU score between reference and hypothesis."""
     reference_tokens = reference.split()
@@ -36,9 +39,9 @@ def evaluate_processed_answer(original_answer, processed_answer):
     rouge_scores = evaluate_rouge(original_answer, processed_answer)
     recall_score = evaluate_recall(original_answer, processed_answer)
 
-    print(f"BLEU Score: {bleu_score:.4f}")
-    print(f"ROUGE Scores: {rouge_scores}")
-    print(f"Recall Score: {recall_score:.4f}")
+    #print(f"BLEU Score: {bleu_score:.4f}")
+    #print(f"ROUGE Scores: {rouge_scores}")
+    #print(f"Recall Score: {recall_score:.4f}")
 
     return {
         "bleu": bleu_score,
@@ -59,38 +62,40 @@ def evaluate_coherence(original_question, summarized_question):
     
     coherence_metric = GEval(
         name="Coherence",
-        criteria="Coherence - the collective quality of all sentences in the actual output",
+        criteria="Coherence - determine if the actual output is coherent with the input, and summarizes the input text correctly.",
         evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
         strict_mode=False,  
-        verbose_mode=True   
+        verbose_mode=False   
     )
     coherence_metric.measure(test_case)
-    print(coherence_metric.score)
-    print(coherence_metric.reason)
+    #print(coherence_metric.score)
+    #print(coherence_metric.reason)
+    return{
+        "coherence_score" : coherence_metric.score,
+        "reason" :coherence_metric.reason
+    }
 
+
+
+
+
+
+
+
+
+
+#########################################
+from deepeval import assert_test
 
 def evaluate_summarization(original_question, summarized_question):
     test_case = LLMTestCase(input=original_question, actual_output=summarized_question)
     summarization_metric = SummarizationMetric(threshold=0.2, strict_mode=False, verbose_mode=True)
-    try:
-        result = summarization_metric.measure(test_case)
-        if result is None:
-            print("Summarization metric failed to produce a result. Please check the input and summarization settings.")
-            return {
-                "coherence_score": None,
-                "reason": "No result from SummarizationMetric"
-            }
-
-        print(f"Summarization Coherence Score: {result.score}")
-        print(f"Summarization Reason: {result.reason}")
-        
-        return {
-            "coherence_score": result.score,
-            "reason": result.reason
-        }
-    except Exception as e:
-        print(f"Error during summarization evaluation: {str(e)}")
-        return {
-            "coherence_score": None,
-            "reason": str(e)
-        }
+    #result = summarization_metric.measure(test_case)
+    assert_test(
+        test_case,
+        [summarization_metric],
+        # run_async=False
+    )
+    #print(a.score)
+    #print(f"Summarization Reason: {result.reason}")
+#########################################3
