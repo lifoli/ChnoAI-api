@@ -139,7 +139,7 @@ def make_final_documents(state: GraphState, model):
 
 # 아래는 example9 데이터가 들어있는 json 파일에서 데이터를 불러와 테스트해보는 코드
 
-with open('data_for_writing.json', 'r') as json_file:
+with open('data_for_writing.json', 'r', encoding='utf-8') as json_file:
     loaded_data = json.load(json_file)
 
 graph_state = GraphState(
