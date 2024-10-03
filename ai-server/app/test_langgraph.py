@@ -1,7 +1,7 @@
 from langgraph.graph import StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from typing import TypedDict
-from fetch_messages import fetch_messages, CONVERSATION_ID_EXAMPLE_1, CONVERSATION_ID_EXAMPLE_2
+from test_messages import fetch_messages, CONVERSATION_ID_EXAMPLE_1, CONVERSATION_ID_EXAMPLE_2
 from db_client import get_db_client
 class GraphState(TypedDict):
     conversation_id: int
