@@ -65,7 +65,8 @@ def evaluate_coherence(original_question, summarized_question):
         criteria="Coherence - determine if the actual output is coherent with the input, and summarizes the input text correctly.",
         evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
         strict_mode=False,  
-        verbose_mode=False   
+        verbose_mode=False,
+        model="gpt-4o-mini"   
     )
     coherence_metric.measure(test_case)
     #print(coherence_metric.score)
@@ -89,7 +90,7 @@ from deepeval import assert_test
 
 def evaluate_summarization(original_question, summarized_question):
     test_case = LLMTestCase(input=original_question, actual_output=summarized_question)
-    summarization_metric = SummarizationMetric(threshold=0.2, strict_mode=False, verbose_mode=True)
+    summarization_metric = SummarizationMetric(threshold=0.2, strict_mode=False, verbose_mode=True, model="gpt-4o-mini" )
     #result = summarization_metric.measure(test_case)
     assert_test(
         test_case,
