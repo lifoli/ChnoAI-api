@@ -2,15 +2,15 @@ from langgraph.graph import StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from typing import TypedDict
 from fetch_messages import fetch_messages, CONVERSATION_ID_EXAMPLE_1, CONVERSATION_ID_EXAMPLE_2
-
+from db_client import get_db_client
 class GraphState(TypedDict):
     conversation_id: int
     messages: list
 
 def get_processed_graph_state(state:GraphState) -> GraphState:
     conversation_id= state["conversation_id"]
-    
-    messages = fetch_messages(conversation_id)
+    database = get_db_client()
+    messages = fetch_messages(database, conversation_id)
 
     processed_graph_state = GraphState(
       conversation_id=conversation_id,
