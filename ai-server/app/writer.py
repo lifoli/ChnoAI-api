@@ -121,7 +121,7 @@ def make_final_documents(state: GraphState):
             while(flag):
                 generated_doc, _ = write(model, qa, document)
                 updated_doc = remove_after_second_hashes(generated_doc.content)
-                if not ('[Q]' in updated_doc):
+                if not ('[Q]' in updated_doc) and not ('```' in updated_doc):
                     flag = False
             state['final_documents'][index] = updated_doc
             #print('doc', index, '...')
@@ -170,11 +170,21 @@ def document_refinement(state: GraphState):
     for code_id in code_list:
         #print(code_id, 'processing...')
         indices_list, heading_list, whole_snippet = find_indices_and_snippet_with_code_id(code_id, state['final_documents'])
+        if len(indices_list) == 0:
+            #print('no founded')
+            continue        
         indices = make_heading_list_for_prompt(heading_list)
 
         prompt = document_refinement_1.compile(code_snippet=whole_snippet, indices=indices)
-        selected = model.invoke(prompt)
-        selected = selected.content
+        flag = True
+        while(flag):
+            selected = model.invoke(prompt)
+            selected = selected.content
+            if selected in indices_list:
+                flag=False
+            else:
+                flag=True
+                #print('error')
         for index in indices_list:
             if selected != index:
                 #print(index, '...')
