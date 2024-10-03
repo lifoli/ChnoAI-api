@@ -176,8 +176,8 @@ def document_refinement(state: GraphState):
         selected = model.invoke(prompt)
         selected = selected.content
         for index in indices_list:
-            #print(index, '...')
             if selected != index:
+                #print(index, '...')
                 doc = state['final_documents'][index]
                 prompt = document_refinement_2.compile(code_snippet=whole_snippet, doc=doc)
                 updated = model.invoke(prompt)
@@ -194,7 +194,7 @@ def replace_code_snippets(document, snippets_dict):
         # 대체할 패턴을 정의
         pattern = f"<-- {snippet_key}:.*?-->"
         # document 내에서 해당 placeholder를 딕셔너리의 value로 대체
-        document = re.sub(pattern, snippets_dict[snippet_key], document)
+        document = re.sub(pattern, "```" + snippets_dict[snippet_key] + "```\n", document)
     
     return document
 
@@ -249,8 +249,7 @@ graph_state = GraphState(
     preprocessed_conversations=loaded_data['EXAMPLE9']['preprocessed_conversations'],
     code_document=loaded_data['EXAMPLE9']['code_document'],
     message_to_index_dict=loaded_data['EXAMPLE9']['message_to_index_dict'],
-    final_documents=loaded_data['EXAMPLE9']['final_documents'],
-    eval=None
+    final_documents=loaded_data['EXAMPLE9']['final_documents']
 )
 
 # 그래프를 실행
