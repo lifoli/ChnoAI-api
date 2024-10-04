@@ -1,0 +1,6 @@
+model: solar-pro
+embedding_model: solar-embedding-1-large
+length_limit: 3000
+merge_strategy: embedding  # option: llm, embedding
+merge_cluster_num: 5
+debug: False
