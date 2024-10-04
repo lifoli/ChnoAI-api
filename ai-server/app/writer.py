@@ -35,8 +35,8 @@ class GraphState(TypedDict):
     Writing 모듈 실행을 위해 필요한 Inputs
     1. preprocessed_conversations -> 서현님 모듈에서 전처리된 QA 세트: list[q_and_a] 
     2. code_document -> 서현님 모듈에서 만든 코드 딕셔너리 dict{'Code_Snippet_1': 'code'}
-    3. message_to_index_dict -> 지환님 모듈에서 만든 각 QA 세트에 해당하는 indices: dict['0': [1-1, 1-2, 1-3]]
-    4. final_documents -> 작성 중인 문서들: dict['1-1': '1-1) heading \n content']
+    3. message_to_index_dict -> 지환님 모듈에서 만든 각 QA 세트에 해당하는 indices: dict['0': [1-1, 1-2, 1-3]] ('0'은 첫 번째 QA 세트를 지칭)
+    4. final_documents -> 작성 중인 문서들: dict['1-1': '## 1-1) heading']
     '''
 
 evaluation_utils = EvaluationUtils()
@@ -117,7 +117,7 @@ def make_final_documents(state: GraphState):
         #print('QA', i, 'processing...')
         for index in indices_for_qa:
             document = state['final_documents'][index]
-            for i in range(5):
+            for i in range(10):
                 generated_doc, _ = write(model, qa, document)
                 updated_doc = remove_after_second_hashes(generated_doc.content)
                 if not ('[Q]' in updated_doc) and not ('```' in updated_doc):
