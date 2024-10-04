@@ -3,7 +3,7 @@ import re
 import time
 
 from dotenv import load_dotenv
-from typing import Annotated, TypedDict, List, Tuple, Optional
+from typing import Annotated, List, Tuple
 from tqdm import tqdm
 
 # langchin
@@ -24,8 +24,8 @@ from langfuse.callback import CallbackHandler
 from evaluation_utils import EvaluationUtils
 from evaluate_score import evaluate_processed_answer, evaluate_coherence  
 
-from type import CodeStorage, QA
-from constatns import CONVERSATION_ID
+from type import CodeStorage, QA, QAProcessorGraphState as GraphState
+from constants import CONVERSATION_ID
 from processed_qna_db import ProcessedQnADBHandler
 
 langfuse_handler = CallbackHandler()
@@ -33,12 +33,6 @@ langfuse = Langfuse()
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
-
-class GraphState(TypedDict):
-    processing_data: Optional[QA]                 # 현재 처리 중인 Q&A pair
-    not_processed_conversations: List[QA]         # 아직 처리되지 않은 Q&A pair 리스트
-    processed_conversations: List[QA]             # 처리된 Q&A pair 리스트
-    code_documents: List[CodeStorage]             # 처리된 코드 문서 정보 리스트
 
 
 class QnAProcessor:
@@ -225,14 +219,21 @@ def run_pipeline(model_name, conversation_id) :
 
 
 
-## usage
-processed_qna_list, code_documents = run_pipeline("gpt-4o-mini", CONVERSATION_ID["EXAMPLE_1"])
+if __name__ == "__main__":
+    processed_qna_list, code_documents = run_pipeline("gpt-4o-mini", CONVERSATION_ID["EXAMPLE_1"])
 
-## Database 삽입 및 조회를 위한 인스턴스 생성
-qna_db_handler = ProcessedQnADBHandler()
-### Database에 데이터 삽입 
-qna_db_handler.insert_qna_and_code(conversation_id=CONVERSATION_ID["EXAMPLE_1"], processed_content=processed_qna_list, code_document=code_documents)
-# Database에서 데이터 조회
-processed_qna, code_document = qna_db_handler.get_qna_and_code(conversation_id=CONVERSATION_ID["EXAMPLE_1"])
-print(f"processed_qna\n {processed_qna} \n")
-print(f"code_document\n {code_document} \n")
+    # Database 삽입 및 조회를 위한 인스턴스 생성
+    qna_db_handler = ProcessedQnADBHandler()
+
+    # Database에 데이터 삽입
+    qna_db_handler.insert_qna_and_code(
+        conversation_id=CONVERSATION_ID["EXAMPLE_1"],
+        processed_content=processed_qna_list,
+        code_document=code_documents
+    )
+
+    # Database에서 데이터 조회
+    processed_qna, code_document = qna_db_handler.get_qna_and_code(conversation_id=CONVERSATION_ID["EXAMPLE_1"])
+    
+    print(f"processed_qna\n {processed_qna} \n")
+    print(f"code_document\n {code_document} \n")

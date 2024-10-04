@@ -1,13 +1,7 @@
 from supabase import Client
 from typing import TypedDict, List
-from constatns import CONVERSATION_ID
-
-class Message(TypedDict):
-    id: int
-    conversation_id: int
-    sequence_number: int
-    message_type: str
-    message_content: str
+from constants import CONVERSATION_ID
+from type import Message
 
 # conversation_id로  메세지 데이터 조회
 def fetch_messages(database: Client, conversation_id: int) -> List[Message]:
