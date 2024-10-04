@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import json
 
 from dotenv import load_dotenv
 from typing import Annotated, TypedDict, List, Tuple, Optional
@@ -24,27 +25,21 @@ from langfuse.callback import CallbackHandler
 from evaluation_utils import EvaluationUtils
 from evaluate_score import evaluate_processed_answer, evaluate_coherence  
 
+from type import CodeStorage, QA
+from processed_qna_db import ProcessedQnADBHandler
+
+
 langfuse_handler = CallbackHandler()
 langfuse = Langfuse()
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 
-class CodeStorage(TypedDict):
-    code_description: str
-    code_index:str
-    code_snippet: str
-
-class QA(TypedDict):
-    q: str
-    a: str
-
 class GraphState(TypedDict):
     processing_data: Optional[QA]                 # 현재 처리 중인 Q&A pair
     not_processed_conversations: List[QA]         # 아직 처리되지 않은 Q&A pair 리스트
     processed_conversations: List[QA]             # 처리된 Q&A pair 리스트
     code_documents: List[CodeStorage]             # 처리된 코드 문서 정보 리스트
-
 
 
 class QnAProcessor:
@@ -71,40 +66,42 @@ class QnAProcessor:
         self.code_documents: List[CodeStorage] = []
 
     
-    def process_qna_pair(self, graph_state:GraphState) -> GraphState:
+    def process_qna_pair(self, graph_state:GraphState) -> Tuple[List[QA], List[CodeStorage]]:
         """Q&A 쌍을 처리하고 코드 스니펫을 설명으로 대체하며, 최종 Q&A 쌍과 코드 문서 리스트를 반환"""
-        for index, qna_pair in tqdm(self.qna_list, desc="Processing Q&A Pairs", unit="pair"):
+        for qna_pair in tqdm(self.qna_list, desc="Processing Q&A Pairs", unit="pair"):
             graph_state["processing_data"] = qna_pair
 
             question = qna_pair["q"]
             answer = qna_pair["a"]
-
-            coherent_score = 0
-            while coherent_score < 0.8:
-                summarized_question = self.summarize_question_with_llm(question)
-                coherence_result = evaluate_coherence(question, summarized_question)
-                coherent_score = coherence_result.get("coherence_score")
-                coherent_reason = coherence_result.get("reason")
-                print("coherent score : ", coherent_score)
-                print("coherent result : ", coherent_reason)
-                if coherent_score < 0.8:
-                    print("Coherent score 기준점을 넘지 못하여 다시 summarize 실행 중...")
+            summarized_question = self.summarize_question_with_llm(question)
+            # coherent_score = 0
+            # while coherent_score < 0.8:
+            #     summarized_question = self.summarize_question_with_llm(question)
+            #     coherence_result = evaluate_coherence(question, summarized_question)
+            #     coherent_score = coherence_result.get("coherence_score")
+            #     coherent_reason = coherence_result.get("reason")
+            #     print("coherent score : ", coherent_score)
+            #     print("coherent result : ", coherent_reason)
+            #     if coherent_score < 0.8:
+            #         print("Coherent score 기준점을 넘지 못하여 다시 summarize 실행 중...")
             
             # coherent_score >= 0.8 이면 summarized_question 반영 
             graph_state["processing_data"]["q"] = summarized_question
 
-            recall_score = 0
-            processed_answer = ""
-            while recall_score < 0.95:
-                processed_answer = self.backtick_process_with_llm(answer)
-                evaluation_results = evaluate_processed_answer(answer, processed_answer)
-                recall_score = evaluation_results.get("recall")
-                print("recall score : ", recall_score)
+            processed_answer = self.backtick_process_with_llm(answer)
 
-                if recall_score < 0.95:
-                    print("Recall score 기준점을 넘지 못하여 다시 backtick 처리 실행 중...")
+            # recall_score = 0
+            # processed_answer = ""
+            # while recall_score < 0.90:
+            #     processed_answer = self.backtick_process_with_llm(answer)
+            #     evaluation_results = evaluate_processed_answer(answer, processed_answer)
+            #     recall_score = evaluation_results.get("recall")
+            #     print("recall score : ", recall_score)
 
-            print("\nBacktick Processing Evaluation Results:\n", evaluation_results)
+            #     if recall_score < 0.90:
+            #         print("Recall score 기준점을 넘지 못하여 다시 backtick 처리 실행 중...")
+
+            # print("\nBacktick Processing Evaluation Results:\n", evaluation_results)
             graph_state["processing_data"]["a"] = processed_answer
             
             question_without_code, answer_without_code = self.extract_code_and_replace_with_description(summarized_question, processed_answer)            
@@ -113,10 +110,9 @@ class QnAProcessor:
             qna_pair["a"] = answer_without_code
 
             graph_state["processing_data"] = qna_pair
-            self.qna_list[index] = qna_pair
             graph_state["processed_conversations"].append(qna_pair)
 
-        return graph_state
+        return self.qna_list, self.code_documents
     
     
     def extract_code_and_replace_with_description(self, question:str, answer:str, description_prefix="Code_Snippet") -> Tuple[str, str]:
@@ -174,43 +170,61 @@ class QnAProcessor:
 
 
 
+def run_pipeline(model_name, conversation_id) :
+
+    if model_name == "gpt-4o-mini":
+        model= ChatOpenAI(model='gpt-4o-mini', temperature=0, max_tokens=None,
+            timeout=None,
+            max_retries=1,
+            api_key = openai_api_key
+        )
+    else : model = ChatUpstage(model='solar-pro')
+
+    evaulation_utils = EvaluationUtils()
+    conversation_data = evaulation_utils.get_messages_by_conversation_id(conversation_id)
+    qna_processor = QnAProcessor(conversation_data, model)
+
+    init_graph_state = GraphState(
+        not_processed_conversations=conversation_data,
+        processing_data=None,
+        processed_conversations=[],
+        code_documents=[]
+    )
+
+    # Start the timer
+    start_time = time.time()
+
+    # Process Q&A pairs with a progress bar
+    processed_qna_list, code_documents = qna_processor.process_qna_pair(graph_state=init_graph_state)
+
+    # Stop the timer
+    end_time = time.time()
+
+    # Calculate elapsed time
+    elapsed_time = end_time - start_time
+    print(f"Execution Time: {elapsed_time:.2f} seconds")
+
+    return processed_qna_list, code_documents
+
+
 
 #####
-EXAMPLE1_CONVERSATION_ID = 146
-EXAMPLE3_CONVERSATION_ID = 170
-evaulation_utils = EvaluationUtils()
-conversation_data = evaulation_utils.get_messages_by_conversation_id(EXAMPLE3_CONVERSATION_ID)
+CONVERSATION_ID = {
+    "EXAMPLE_1" : 175,
+    "EXAMPLE_3" : 170,
+    "EXAMPLE_4" : 172,
+    "EXAMPLE_5" : 176,
+    "EXAMPLE_10" : 178,
+    "EXAMPLE_11" : 179
+}
 
-#usage for example
-llm  = ChatOpenAI(model='gpt-4o-mini', temperature=0, max_tokens=None,
-    timeout=None,
-    max_retries=1,
-    api_key = openai_api_key
-)
-# llm = ChatUpstage(model='solar-pro')
-
-qna_processor = QnAProcessor(conversation_data, llm)
-
-# Start the timer
-start_time = time.time()
-
-graph_state = GraphState(
-    not_processed_conversations=conversation_data,
-    processing_data=None,
-    processed_conversations=[],
-    code_documents=[]
-)
-
-
-# Process Q&A pairs with a progress bar
-processed_graph_state = qna_processor.process_qna_pair(graph_state)
-
-# Stop the timer
-end_time = time.time()
-
-# Calculate elapsed time
-elapsed_time = end_time - start_time
-print(f"Execution Time: {elapsed_time:.2f} seconds")
-
-
-
+## usage
+processed_qna_list, code_documents = run_pipeline("gpt-4o-mini", CONVERSATION_ID["EXAMPLE_1"])      
+## Database 삽입 및 조회를 위한 인스턴스 생성
+qna_db_handler = ProcessedQnADBHandler()
+### Database에 데이터 삽입 
+qna_db_handler.insert_qna_and_code(conversation_id=CONVERSATION_ID["EXAMPLE_1"], processed_content=processed_qna_list, code_document=code_documents)
+# Database에서 데이터 조회
+processed_qna, code_document = qna_db_handler.get_qna_and_code(conversation_id=CONVERSATION_ID["EXAMPLE_1"])
+print(f"processed_qna\n {processed_qna} \n")
+print(f"code_document\n {code_document} \n")
