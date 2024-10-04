@@ -1,6 +1,14 @@
 from operator import not_
 import os
-import re
+import sys
+import yaml
+
+import numpy as np
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import euclidean_distances
+from tqdm import tqdm
+
+import logging
 
 from tabnanny import check
 from certifi import contents
@@ -18,22 +26,35 @@ from langfuse.callback import CallbackHandler
 langfuse_handler = CallbackHandler()
 langfuse = Langfuse()
 
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from utils import (
     format_message, 
-    load_conversation, 
     q_and_a,
-    GraphState
+    GraphState,
+    fetch_messages
 )
-from ..test_messages import fetch_messages
 
 class SubtitleGenerator():
-    def __init__(self, model="solar-pro", embedding_model = "solar-embedding-1-large"):
-        self.model = ChatUpstage(model=model)
-        self.embedding_model = UpstageEmbeddings(model = embedding_model)
-        self.length_limit = 5000 # question character length limit
+    def __init__(self, config_path="subtitle_generator.yaml"):
+        # Load configuration from YAML file
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+        
+        # Load configurations
+        logging.info(f'Subtitle generator configuration: {config}')
+        self.model = ChatUpstage(model=config.get('model'))
+        self.embedding_model = UpstageEmbeddings(model=config.get('embedding_model'))
+        self.length_limit = config.get('length_limit')  
+        self.merge_strategy = config.get('merge_strategy')
+        self.merge_cluster_num = config.get('merge_cluster_num')  
+        self.debug = config.get('debug') 
 
     # Generate an subtitle for a single QA pair.
-    def generate_single_subtitle(self, question, answer):
+    def generate_subtitles(self, question, answer):
         subtitle_generation : Annotated[str, HumanMessage] = langfuse.get_prompt("subtitle_generator")
         prompt = subtitle_generation.compile(question = question, answer=answer)
         response = self.model.invoke(prompt)
@@ -59,35 +80,88 @@ class SubtitleGenerator():
             raise ValueError("input type must be str or list of str.")
         return result
 
-    # main function
-    def generate(self, chat_name = 'chat_ex2'):
+    def merge_subtitle(self, subtitle_list):
         """
-        Generates a list of subtitlees for question-answer (QA) pairs in a conversation.
-
-        This method performs the following steps:
-        1. Loads and formats conversation data from the specified chat file.
-        2. Iterates through each QA pair in the conversation:
-        - Trims questions and answers if they exceed the specified length limit.
-        - Generates a unique subtitle for each QA pair and appends it to an subtitle list.
-        3. Checks for consecutive duplicate subtitlees:
-        - If two consecutive subtitlees are duplicates, the first subtitle is set to None,
-            and the second subtitle is updated to reflect the non-duplicated version.
-        4. Returns the list of subtitlees with duplicate entries handled.
+        Merges generated subtitles from each QA pair into a finite set of distinct subtitles.
 
         Args:
-            chat_name (str): The name of the chat file to load and process. Default is 'chat_ex2'.
+            subtitle_list (list(list(str))): A list of lists, where each inner list contains subtitles generated for a QA pair.
 
         Returns:
-            list: A list of subtitlees generated for the QA pairs, with duplicates handled.
+            subtitles (list(str)): A merged list of distinct subtitles.
+            subtitle_index (list(list(int))): A list of lists, where each inner list indicates the index of the subtitle corresponding to each QA pair.
         """
+        logging.info(f'merging start. merging strategy: {self.merge_strategy}')
+
+        result = []
+
+        if self.merge_strategy == 'llm':
+            raise NotImplementedError()
+        
+        elif self.merge_strategy == 'embedding':
+            
+            subtitle_embedding_list = [] # list(list(float)): each subtitle embeddings
+            subtitle_embedding_numpy = [] # list(float) -> np.array: np array to calculate kMeans
+            subtitle_index = [] # list(list(int)) Index to which the subtitle belongs
+
+            # Calculate embeddings of subtitles
+            for subtitles in subtitle_list:
+                subtitle_embedding = self._get_sentence_embedding(subtitles)
+                subtitle_embedding_list.append(subtitle_embedding)
+            
+            # concatenate all subtitle embedding lists into one list to make it as numpy vector
+            for subtitle_embedding in subtitle_embedding_list:
+                subtitle_embedding_numpy.extend(subtitle_embedding)
+            subtitle_embedding_numpy = np.array(subtitle_embedding_numpy) # (N, 4096)
+            
+            # Cluster the embeddings using KMeans
+            logging.info('Start calculating kMeans...')
+            kmeans = KMeans(n_clusters=self.merge_cluster_num, random_state=42)
+            kmeans.fit(subtitle_embedding_numpy)
+
+            # Compute the Euclidean distance between the given embedding and each cluster center
+            logging.info('Find closest kMean point for each subtitle embeddings...')
+            for subtitle_embedding in subtitle_embedding_list:
+                subtitle_index_sublist = []
+                for subtitle_single_embedding in subtitle_embedding:
+                    distances = euclidean_distances([subtitle_single_embedding], kmeans.cluster_centers_)
+                    subtitle_index_sublist.append(np.argmin(distances))
+                subtitle_index.append(subtitle_index_sublist)
+            if self.debug:
+                print(subtitle_index)
+            
+            # Sum up subtitles with same clusters and merge them into a single subtitle with an LLM 
+            subtitle_clustered = [[] for _ in range(self.merge_cluster_num)]
+            for i, (subtitles) in enumerate(subtitle_list):
+                for j, (single_subtitle) in enumerate(subtitles):
+                    subtitle_clustered[subtitle_index[i][j]].append(single_subtitle)
+            if self.debug:
+                print(subtitle_clustered)
+
+            logging.info(f'Merging subtitles into {self.merge_cluster_num} subtitle...')
+            for i in range(self.merge_cluster_num):
+                subtitle_merge_prompt : Annotated[str, HumanMessage] = langfuse.get_prompt("subtitle_generator_merge")
+                prompt = subtitle_merge_prompt.compile(subtitles=str(subtitle_clustered[i]))
+                response = self.model.invoke(prompt)
+                result.append(response.content.strip())
+
+            if self.debug:
+                print(result, [sorted(set(sublist)) for sublist in subtitle_index])
+                
+            return result, [sorted(set(sublist)) for sublist in subtitle_index]
+
+        else:
+            raise ValueError("specified merge_strategy is invalid.")
+
+
+    # main function
+    def generate(self, conversation):
          
         subtitle_list = []
-
-        conversation_data = load_conversation(chat_name=chat_name)
-        conversation_data = format_message(conversation_data)
+        conversation_data = format_message(conversation)
 
         # generate subtitlees per each QA pairs 
-        for idx, (_) in enumerate(conversation_data):
+        for idx, conversation in tqdm(enumerate(conversation_data), total=len(conversation_data), desc="Generating Subtitles"):
             conversation = conversation_data[idx]
             
             # Trim if the conversations are too long
@@ -97,8 +171,17 @@ class SubtitleGenerator():
                 conversation['a'] = conversation['a'][:self.length_limit]
 
             # Generate a subtitle per each QA pairs 
-            subtitle_result = self.generate_single_subtitle(conversation['q'], conversation['a'])
+            subtitle_result = self.generate_subtitles(conversation['q'], conversation['a'])
+
+            # parse the answer and make them into a list
+            subtitle_result = subtitle_result.splitlines()
+            subtitle_result = [line for line in subtitle_result if line.strip()] # remove if a line is empty
+
+            tqdm.write(f"Processed subtitles for QA pair {idx + 1}: {subtitle_result}")
+
+            #print('converted_subtitle', subtitle_result)
             subtitle_list.append(subtitle_result)
+        logging.info('generating subtitles is done.')
 
         return subtitle_list
 
@@ -106,8 +189,9 @@ class SubtitleGenerator():
 if __name__ == '__main__':
     CONVERSATION_ID_EXAMPLE_1 = 146
     CONVERSATION_ID_EXAMPLE_2 = 152
-    result = fetch_messages(CONVERSATION_ID_EXAMPLE_1)
-    print (result)
-    #test = SubtitleGenerator()
-    #subtitle_list = test.generate()
+    conversation = fetch_messages(CONVERSATION_ID_EXAMPLE_2)
+    print('current path:', os.getcwd())
+    test = SubtitleGenerator(config_path="../configs/subtitle_generator.yaml")
+    subtitle_list = test.generate(conversation)
+    test.merge_subtitle(subtitle_list)
     #print(subtitle_list)
