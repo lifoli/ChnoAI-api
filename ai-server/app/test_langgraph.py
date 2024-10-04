@@ -1,7 +1,8 @@
 from langgraph.graph import StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from typing import TypedDict
-from test_messages import fetch_messages, CONVERSATION_ID_EXAMPLE_1, CONVERSATION_ID_EXAMPLE_2
+from test_messages import fetch_messages
+from constatns import CONVERSATION_ID
 from db_client import get_db_client
 class GraphState(TypedDict):
     conversation_id: int
@@ -32,7 +33,7 @@ compiled_graph = fetch_messages_graph.compile(checkpointer=memory)
 
 # 들어갈 graph_state를 정의
 graph_state = GraphState(
-    conversation_id=CONVERSATION_ID_EXAMPLE_1, # 테스트 할 conversation id로 변경
+    conversation_id=CONVERSATION_ID["EXAMPLE_1"], # 테스트 할 conversation id로 변경
     messages=[],
 )
 

@@ -1,7 +1,6 @@
 import os
 import re
 import time
-import json
 
 from dotenv import load_dotenv
 from typing import Annotated, TypedDict, List, Tuple, Optional
@@ -26,8 +25,8 @@ from evaluation_utils import EvaluationUtils
 from evaluate_score import evaluate_processed_answer, evaluate_coherence  
 
 from type import CodeStorage, QA
+from constatns import CONVERSATION_ID
 from processed_qna_db import ProcessedQnADBHandler
-
 
 langfuse_handler = CallbackHandler()
 langfuse = Langfuse()
@@ -64,45 +63,63 @@ class QnAProcessor:
         self.qna_list = qna_list
         self.model = model
         self.code_documents: List[CodeStorage] = []
-
     
-    def process_qna_pair(self, graph_state:GraphState) -> Tuple[List[QA], List[CodeStorage]]:
+    def process_qna_pair(self, graph_state:GraphState, MAX_ITERATION:int=3) -> Tuple[List[QA], List[CodeStorage]]:
         """Q&A 쌍을 처리하고 코드 스니펫을 설명으로 대체하며, 최종 Q&A 쌍과 코드 문서 리스트를 반환"""
         for qna_pair in tqdm(self.qna_list, desc="Processing Q&A Pairs", unit="pair"):
             graph_state["processing_data"] = qna_pair
 
             question = qna_pair["q"]
             answer = qna_pair["a"]
-            summarized_question = self.summarize_question_with_llm(question)
-            # coherent_score = 0
-            # while coherent_score < 0.8:
-            #     summarized_question = self.summarize_question_with_llm(question)
-            #     coherence_result = evaluate_coherence(question, summarized_question)
-            #     coherent_score = coherence_result.get("coherence_score")
-            #     coherent_reason = coherence_result.get("reason")
-            #     print("coherent score : ", coherent_score)
-            #     print("coherent result : ", coherent_reason)
-            #     if coherent_score < 0.8:
-            #         print("Coherent score 기준점을 넘지 못하여 다시 summarize 실행 중...")
+
+            coherent_score = 0
+            best_summarized_question = "" 
+            for i in range(MAX_ITERATION):
+                summarized_question = self.summarize_question_with_llm(question)
+                coherence_result = evaluate_coherence(question, summarized_question)
+                
+                current_score  = coherence_result.get("coherence_score")
+                coherent_reason = coherence_result.get("reason")
+                
+                print(f"Iteration {i + 1}/{MAX_ITERATION}")
+                print(f"Coherent score: {current_score }")
+                print(f"Coherent reason: {coherent_reason}")
+
+                if current_score > coherent_score:
+                    coherent_score = current_score
+                    best_summarized_question = summarized_question 
+                
+                if coherent_score >= 0.8:
+                    print("Coherent score 기준점을 넘음. 반복 종료.")
+                    break
+                else:
+                    print("Coherent score 기준점을 넘지 못하여 다시 summarize 실행 중...")
             
             # coherent_score >= 0.8 이면 summarized_question 반영 
-            graph_state["processing_data"]["q"] = summarized_question
+            graph_state["processing_data"]["q"] = best_summarized_question
 
-            processed_answer = self.backtick_process_with_llm(answer)
 
-            # recall_score = 0
-            # processed_answer = ""
-            # while recall_score < 0.90:
-            #     processed_answer = self.backtick_process_with_llm(answer)
-            #     evaluation_results = evaluate_processed_answer(answer, processed_answer)
-            #     recall_score = evaluation_results.get("recall")
-            #     print("recall score : ", recall_score)
+            recall_score = 0
+            best_processed_answer = ""
+            for i in range(MAX_ITERATION):
+                processed_answer = self.backtick_process_with_llm(answer)
+                evaluation_results = evaluate_processed_answer(answer, processed_answer)
+                
+                current_recall_score = evaluation_results.get("recall")
+                print(f"Iteration {i + 1}/{MAX_ITERATION}")
+                print(f"Recall score: {current_recall_score}")
 
-            #     if recall_score < 0.90:
-            #         print("Recall score 기준점을 넘지 못하여 다시 backtick 처리 실행 중...")
+                if current_recall_score > recall_score:
+                    recall_score = current_recall_score
+                    best_processed_answer = processed_answer  
+                
+                if recall_score >= 0.90:
+                    print("Recall score 기준점을 넘음. 반복 종료.")
+                    break
+                else:
+                    print("Recall score 기준점을 넘지 못하여 다시 backtick 처리 실행 중...")
 
-            # print("\nBacktick Processing Evaluation Results:\n", evaluation_results)
-            graph_state["processing_data"]["a"] = processed_answer
+            graph_state["processing_data"]["a"] = best_processed_answer
             
             question_without_code, answer_without_code = self.extract_code_and_replace_with_description(summarized_question, processed_answer)            
             graph_state["code_documents"] = self.code_documents
@@ -208,18 +225,9 @@ def run_pipeline(model_name, conversation_id) :
 
 
 
-#####
-CONVERSATION_ID = {
-    "EXAMPLE_1" : 175,
-    "EXAMPLE_3" : 170,
-    "EXAMPLE_4" : 172,
-    "EXAMPLE_5" : 176,
-    "EXAMPLE_10" : 178,
-    "EXAMPLE_11" : 179
-}
-
 ## usage
-processed_qna_list, code_documents = run_pipeline("gpt-4o-mini", CONVERSATION_ID["EXAMPLE_1"])      
+processed_qna_list, code_documents = run_pipeline("gpt-4o-mini", CONVERSATION_ID["EXAMPLE_1"])
+
 ## Database 삽입 및 조회를 위한 인스턴스 생성
 qna_db_handler = ProcessedQnADBHandler()
 ### Database에 데이터 삽입 

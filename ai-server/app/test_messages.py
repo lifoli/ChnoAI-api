@@ -1,8 +1,6 @@
 from supabase import Client
 from typing import TypedDict, List
-
-CONVERSATION_ID_EXAMPLE_1 = 146
-CONVERSATION_ID_EXAMPLE_2 = 152
+from constatns import CONVERSATION_ID
 
 class Message(TypedDict):
     id: int
@@ -29,6 +27,6 @@ def fetch_messages(database: Client, conversation_id: int) -> List[Message]:
     return messages
 
 # Usage example, 테스트할 conversation_id로 변경
-# messages = fetch_messages(CONVERSATION_ID_EXAMPLE_1) 
+# messages = fetch_messages(CONVERSATION_ID["EXAMPLE_1"]) 
 # print(messages)
 
