@@ -220,20 +220,25 @@ def run_pipeline(model_name, conversation_id) :
 
 
 if __name__ == "__main__":
-    processed_qna_list, code_documents = run_pipeline("gpt-4o-mini", CONVERSATION_ID["EXAMPLE_1"])
+    model_name = "solar-pro"
+
+    conversation_id = CONVERSATION_ID["EXAMPLE_1"]
+    processed_qna_list, code_documents = run_pipeline(model_name, conversation_id)
 
     # Database 삽입 및 조회를 위한 인스턴스 생성
     qna_db_handler = ProcessedQnADBHandler()
 
     # Database에 데이터 삽입
     qna_db_handler.insert_qna_and_code(
-        conversation_id=CONVERSATION_ID["EXAMPLE_1"],
+        conversation_id=conversation_id,
+        model = model_name,
         processed_content=processed_qna_list,
         code_document=code_documents
     )
 
+
     # Database에서 데이터 조회
-    processed_qna, code_document = qna_db_handler.get_qna_and_code(conversation_id=CONVERSATION_ID["EXAMPLE_1"])
+    processed_qna, code_document = qna_db_handler.get_qna_and_code(conversation_id=conversation_id, model=model_name)
     
     print(f"processed_qna\n {processed_qna} \n")
     print(f"code_document\n {code_document} \n")
