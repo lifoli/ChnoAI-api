@@ -32,6 +32,7 @@ from utils import (
     format_message, 
     fetch_messages
 )
+from db_client import get_db_client
 
 class SubtitleGenerator():
     def __init__(self, config_path="subtitle_generator.yaml"):
@@ -231,9 +232,10 @@ class SubtitleGenerator():
 
 # Demo for debugging purpose
 if __name__ == '__main__':
+    database = get_db_client()
     CONVERSATION_ID_EXAMPLE_1 = 146
     CONVERSATION_ID_EXAMPLE_2 = 152
-    conversation = fetch_messages(CONVERSATION_ID_EXAMPLE_2)
+    conversation = fetch_messages(database, CONVERSATION_ID_EXAMPLE_2)
     print('current path:', os.getcwd())
     test = SubtitleGenerator(config_path="../configs/subtitle_generator.yaml")
     #subtitle_list = test.generate(conversation)

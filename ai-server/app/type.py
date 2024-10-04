@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Optional
+from typing import TypedDict, Optional
 
 class Message(TypedDict):
     id: int
@@ -22,9 +22,9 @@ class QA(TypedDict):
 
 class QAProcessorGraphState(TypedDict):
     processing_data: Optional[QA]                 # 현재 처리 중인 Q&A pair
-    not_processed_conversations: List[QA]         # 아직 처리되지 않은 Q&A pair 리스트
-    processed_conversations: List[QA]             # 처리된 Q&A pair 리스트
-    code_documents: List[CodeStorage]             # 처리된 코드 문서 정보 리스트
+    not_processed_conversations: list[QA]         # 아직 처리되지 않은 Q&A pair 리스트
+    processed_conversations: list[QA]             # 처리된 Q&A pair 리스트
+    code_documents: list[CodeStorage]             # 처리된 코드 문서 정보 리스트
 
 class WriterGraphState(TypedDict): 
     preprocessed_conversations: list[q_and_a]

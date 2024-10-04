@@ -1,50 +1,18 @@
-from operator import not_
-import os
 import logging
 import warnings
 from functools import wraps
-
-from tabnanny import check
-
-
-# .env 파일의 환경 변수를 로드합니다.
-from certifi import contents
-from dotenv import load_dotenv
-from supabase import create_client, Client
-load_dotenv()
-
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
-# langchin
-from langchain_upstage import ChatUpstage
-from langchain_core.messages import HumanMessage
-from langchain_core.tools import tool
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, START, StateGraph, MessagesState
-from langgraph.prebuilt import ToolNode
-from typing import Annotated, Literal, TypedDict, List, Dict
+from type import Message, QA
+from supabase import Client
 
 # langfuse
 from langfuse import Langfuse
-from langfuse.callback import CallbackHandler
-langfuse_handler = CallbackHandler()
 langfuse = Langfuse()
-database: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-class q_and_a(TypedDict):
-    q: str
-    a: str
-
-class GraphState(TypedDict):
-    not_processed_conversations: list[q_and_a]
-    processed_conversations: list[q_and_a]
-    result: str  # 수정된 변수명
 
 # Configure logging
-
 def deprecated(func):
     """Decorator to log a method call and warn about deprecation."""
     @wraps(func)
@@ -61,7 +29,7 @@ def deprecated(func):
     
     return wrapper
 
-def format_message(conversation: List[Dict[str, str]]) -> List[Dict[str, str]]:
+def format_message(conversation: list[Message]) -> list[QA]:
     """
     Formats a given conversation into a list of dictionaries, each containing
     a 'q' (question) and 'a' (answer) pair.
@@ -90,7 +58,7 @@ def format_message(conversation: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
 
 # conversation_id로  메세지 데이터 조회
-def fetch_messages(conversation_id) -> list:
+def fetch_messages(database:Client, conversation_id:int) -> list[Message]:
     try:
         response = database.table("messages") \
                     .select("sequence_number, message_type, message_content") \
