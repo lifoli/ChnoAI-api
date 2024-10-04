@@ -178,7 +178,7 @@ def document_refinement(state: GraphState):
         indices = make_heading_list_for_prompt(heading_list)
 
         prompt = document_refinement_1.compile(code_snippet=whole_snippet, indices=indices)
-        for i in range(5):
+        for i in range(10):
             selected = model.invoke(prompt)
             selected = selected.content
             if selected in indices_list:
