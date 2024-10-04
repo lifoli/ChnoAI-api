@@ -1,13 +1,5 @@
 
-import os
-from dotenv import load_dotenv
-from supabase import create_client, Client
-
-load_dotenv()
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
-
-database: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+from db_client import get_db_client
 #################################################################
 # example1
 EXAMPLE1_CONVERSATION_ID = 146
@@ -22,6 +14,9 @@ EXAMPLE6_CONVERSATION_ID = 153
 
 
 class EvaluationUtils:
+  def __init__(self) -> None:
+      self.database = get_db_client()
+
   def format_messages(self, messages):
     """
     get_messages_by_conversation_id의 결과를 포맷팅합니다.
@@ -46,7 +41,7 @@ class EvaluationUtils:
         :param criteria: A single evaluation criteria to be added.
         """
         
-        response = database.table("messages_for_eval") \
+        response = self.database.table("messages_for_eval") \
                     .select("sequence_number, message_type, message_content") \
                     .eq("conversation_id", conversation_id) \
                     .order("sequence_number", desc=False) \
@@ -59,14 +54,14 @@ class EvaluationUtils:
   # conversation_id값을 통해 완성된 노트의 인덱스를 가져옴
   def get_indices_by_conversation_id(self, conversation_id: int):
     # Step 1: conversations_for_eval 테이블과 tech_notes_for_eval 테이블에서 conversation_id에 해당하는 tech_notes_for_eval의 id를 가져옴
-    response_notes = database.table('tech_notes_for_eval').select('id') \
+    response_notes = self.database.table('tech_notes_for_eval').select('id') \
         .eq('conversation_id', conversation_id).execute()
     print(response_notes)
     if response_notes.data:
         tech_note_ids = [item['id'] for item in response_notes.data]
 
         # Step 2: tech_note_indexs_for_eval 테이블에서 해당하는 tech_note_ids와 매칭되는 index_name을 가져옴
-        response_indices = database.table('tech_note_indexs_for_eval').select('index_name') \
+        response_indices = self.database.table('tech_note_indexs_for_eval').select('index_name') \
             .in_('tech_note_id', tech_note_ids).order('index_name', desc=False).execute()
         
 
@@ -87,7 +82,7 @@ class EvaluationUtils:
     # 키는 메시지 messages_for_eval 테이블의 id, 값은 인덱스의 tech_note_indexs_for_eval 테이블의 id가 담겨있는 리스트 입니다.
     message_to_index_dict = {}
     # Step 1:
-    messages = database.table('messages_for_eval').select('id, message_content').eq('conversation_id', conversation_id).order('sequence_number', desc=False).execute()
+    messages = self.database.table('messages_for_eval').select('id, message_content').eq('conversation_id', conversation_id).order('sequence_number', desc=False).execute()
     if messages.data:
         for message in messages.data:
             message_dict[message['id']] = message['message_content']
@@ -96,10 +91,10 @@ class EvaluationUtils:
         return {}
     
     # Step 2:
-    tech_note = database.table('tech_notes_for_eval').select('id').eq('conversation_id', conversation_id).execute()
+    tech_note = self.database.table('tech_notes_for_eval').select('id').eq('conversation_id', conversation_id).execute()
     if tech_note.data:
         tech_note_id = tech_note.data[0]['id']
-        indices = database.table('tech_note_indexs_for_eval').select('id, index_name').eq('tech_note_id', tech_note_id).order('index_number', desc=False).execute()
+        indices = self.database.table('tech_note_indexs_for_eval').select('id, index_name').eq('tech_note_id', tech_note_id).order('index_number', desc=False).execute()
         if indices.data:
             for index in indices.data:
                 index_dict[index['id']] = index['index_name']
@@ -113,7 +108,7 @@ class EvaluationUtils:
     # Step 3:
     messages = message_dict.keys()
     # message_id가 messages에 있는 경우에만 message_to_tech_note_index_for_eval 테이블에서 해당하는 tech_note_index_id를 가져옴
-    message_to_tech_note_index = database.table('message_to_tech_note_index_for_eval').select('message_id, tech_note_index_id').in_('message_id', messages).execute()
+    message_to_tech_note_index = self.database.table('message_to_tech_note_index_for_eval').select('message_id, tech_note_index_id').in_('message_id', messages).execute()
     print(message_to_tech_note_index)
     if message_to_tech_note_index.data:
         for item in message_to_tech_note_index.data:
