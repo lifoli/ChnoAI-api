@@ -10,8 +10,6 @@ from tqdm import tqdm
 
 import logging
 
-from tabnanny import check
-from certifi import contents
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -26,15 +24,12 @@ from langfuse.callback import CallbackHandler
 langfuse_handler = CallbackHandler()
 langfuse = Langfuse()
 
-
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from utils import (
     format_message, 
-    q_and_a,
-    GraphState,
     fetch_messages
 )
 
@@ -60,6 +55,34 @@ class SubtitleGenerator():
         response = self.model.invoke(prompt)
         return response.content.strip()
     
+    def _reorder_subtitles(self, subtitle_list,qa_index):
+        """
+        Renumbering and reordering so that the subtitle mentioned first has the previous index.
+        """
+        # Create the renumber mapping based on the first appearance of numbers in num_lists
+        number_map = {}
+        next_number = 0
+        renumbered_qa_lists = []
+
+        for sublist in qa_index:
+            renumbered_sublist = []
+            for num in sublist:
+                if num not in number_map:
+                    number_map[num] = next_number
+                    next_number += 1
+                renumbered_sublist.append(number_map[num])
+            renumbered_qa_lists.append(renumbered_sublist)
+
+        # Reorder the subtitle_list based on the renumber mapping
+        reordered_subtitles = [None] * len(subtitle_list)
+
+        # Fill the reordered_subtitles based on the mapping
+        for i, _ in enumerate(reordered_subtitles):
+            reordered_subtitles[i] = subtitle_list[number_map[i]]
+
+        return reordered_subtitles, renumbered_qa_lists
+    
+    
     def _get_sentence_embedding(self, sentence):
         """
         Computes the sentence embedding(s) for a given input.
@@ -79,6 +102,22 @@ class SubtitleGenerator():
         else:
             raise ValueError("input type must be str or list of str.")
         return result
+    
+    def _format_data(self, subtitle_list, qa_index_list):
+        """
+        format data to return to fit for writer
+        """
+        subtitle_dict = {}
+        qa_index_dict = {}
+        
+        for idx, (subtitle) in enumerate(subtitle_list):
+            subtitle = subtitle.replace('"', '')
+            subtitle_dict[str(idx)] = f'## {idx}) {subtitle}'
+        
+        for idx, (qa_index) in enumerate(qa_index_list):
+            qa_index_dict[str(idx)] = qa_index
+
+        return subtitle_dict, qa_index_dict
 
     def merge_subtitle(self, subtitle_list):
         """
@@ -153,8 +192,6 @@ class SubtitleGenerator():
         else:
             raise ValueError("specified merge_strategy is invalid.")
 
-
-    # main function
     def generate(self, conversation):
          
         subtitle_list = []
@@ -177,13 +214,20 @@ class SubtitleGenerator():
             subtitle_result = subtitle_result.splitlines()
             subtitle_result = [line for line in subtitle_result if line.strip()] # remove if a line is empty
 
-            tqdm.write(f"Processed subtitles for QA pair {idx + 1}: {subtitle_result}")
+            if self.debug:
+                tqdm.write(f"Processed subtitles for QA pair {idx + 1}: {subtitle_result}")
 
             #print('converted_subtitle', subtitle_result)
             subtitle_list.append(subtitle_result)
         logging.info('generating subtitles is done.')
 
         return subtitle_list
+    
+    def __call__(self, conversation):
+        subtitle_list = self.generate(conversation)
+        subtitle_list, qa_indices = self.merge_subtitle(subtitle_list)
+        subtitle_list, qa_indices = self._reorder_subtitles(subtitle_list=subtitle_list,qa_index=qa_indices)
+        return self._format_data(subtitle_list, qa_indices)
 
 # Demo for debugging purpose
 if __name__ == '__main__':
@@ -192,6 +236,6 @@ if __name__ == '__main__':
     conversation = fetch_messages(CONVERSATION_ID_EXAMPLE_2)
     print('current path:', os.getcwd())
     test = SubtitleGenerator(config_path="../configs/subtitle_generator.yaml")
-    subtitle_list = test.generate(conversation)
-    test.merge_subtitle(subtitle_list)
-    #print(subtitle_list)
+    #subtitle_list = test.generate(conversation)
+    #test.merge_subtitle(subtitle_list)
+    print('result:',test(conversation))
