@@ -20,8 +20,6 @@ from typing import Annotated, Literal, TypedDict
 from langfuse import Langfuse
 from langfuse.callback import CallbackHandler
 
-from evaluation_utils import EvaluationUtils
-
 class q_and_a(TypedDict):
     q: str
     a: str
@@ -39,7 +37,6 @@ class GraphState(TypedDict):
     4. final_documents -> 작성 중인 문서들: dict['1-1': '## 1-1) heading']
     '''
 
-evaluation_utils = EvaluationUtils()
 langfuse_handler = CallbackHandler()
 langfuse = Langfuse()
 

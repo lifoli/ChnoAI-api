@@ -8,7 +8,7 @@ class ProcessedQnADBHandler:
         self.database: Client = get_db_client()  
 
     # Q&A 데이터를 'processed_qna' 테이블에 삽입하는 메서드
-    def insert_processed_qna(self, conversation_id: int, processed_content: List[QA]):
+    def insert_processed_qna(self, conversation_id: int, model:str, processed_content: List[QA]):
         """
         processed_qna_pairs 데이터를 processed_qna 테이블에 삽입하는 메서드.
 
@@ -23,6 +23,7 @@ class ProcessedQnADBHandler:
         try:
             response = self.database.table("processed_qna").insert({
             "conversation_id": conversation_id,  # 대화 ID
+            "model":model,  
             "processed_content": processed_content  # Q&A 데이터 리스트
         }).execute()
             return response.data  
@@ -32,7 +33,7 @@ class ProcessedQnADBHandler:
             return None
 
     # 추출된 코드 데이터를 'extracted_code' 테이블에 삽입하는 메서드
-    def insert_extracted_code(self, conversation_id: int, processed_qna_id: int, code_document: List[CodeStorage]):
+    def insert_extracted_code(self, conversation_id: int, model:str, processed_qna_id: int, code_document: List[CodeStorage]):
         """
         추출된 코드 데이터를 extracted_code 테이블에 삽입하는 메서드.
 
@@ -46,7 +47,8 @@ class ProcessedQnADBHandler:
         """        
         try:
             response = self.database.table("extracted_code").insert({
-            "conversation_id": conversation_id,  
+            "conversation_id": conversation_id,
+            "model":model,  
             "processed_qna_id": processed_qna_id,  
             "code_document": code_document 
         }).execute()
@@ -55,7 +57,7 @@ class ProcessedQnADBHandler:
             print(f"Internal server error: {str(e)}")
             return None
         
-    def insert_qna_and_code(self, conversation_id: int, processed_content: List[QA], code_document: List[CodeStorage]):
+    def insert_qna_and_code(self, conversation_id: int, model:str, processed_content: List[QA], code_document: List[CodeStorage]):
         """
         processed_qna 테이블에 Q&A 데이터를 삽입하고, 해당 ID를 사용해 extracted_code 테이블에 코드 데이터를 삽입하는 메서드.
 
@@ -69,12 +71,12 @@ class ProcessedQnADBHandler:
         """
         try:
             # Q&A 데이터를 먼저 삽입
-            processed_qna = self.insert_processed_qna(conversation_id, processed_content)
+            processed_qna = self.insert_processed_qna(conversation_id, model, processed_content)
             processed_qna_id = processed_qna[0]["id"]
 
             # 삽입된 Q&A 데이터의 ID가 유효한 경우에만 코드 데이터를 삽입
             if processed_qna_id is not None:
-                response = self.insert_extracted_code(conversation_id, processed_qna_id, code_document)
+                response = self.insert_extracted_code(conversation_id, model, processed_qna_id, code_document)
                 if response is not None:
                     print("Q&A 및 코드 문서 데이터가 성공적으로 삽입되었습니다.")
                     return True
@@ -88,7 +90,7 @@ class ProcessedQnADBHandler:
             print(f"Internal server error: {str(e)}")
             return False
     
-    def get_qna_and_code(self, conversation_id: int):
+    def get_qna_and_code(self, conversation_id: int, model:str):
         processed_qna_conversation = None
         code_document = None
         
@@ -97,6 +99,7 @@ class ProcessedQnADBHandler:
             response = self.database.table("processed_qna") \
                                     .select("id, processed_content") \
                                     .eq("conversation_id", conversation_id) \
+                                    .eq("model", model) \
                                     .order("id", desc=True) \
                                     .limit(1) \
                                     .execute()
@@ -112,6 +115,7 @@ class ProcessedQnADBHandler:
             response = self.database.table("extracted_code") \
                                     .select("code_document") \
                                     .eq("processed_qna_id", processed_qna_id) \
+                                    .eq("model", model) \
                                     .order("id", desc=True) \
                                     .limit(1) \
                                     .execute()
