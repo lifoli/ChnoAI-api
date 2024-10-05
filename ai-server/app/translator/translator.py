@@ -74,12 +74,12 @@ def translate_q_and_a(conversation_list: List[q_and_a], translation_model: str, 
                 embedded_query = passage_embeddings.embed_documents([question])
                 embedded_translated_q = passage_embeddings.embed_documents([translated_q])
                 similarity_q = calculate_similarity(embedded_query, embedded_translated_q)
-                print(f"질문 번역 유사도 (시도 {attempts + 1}): {similarity_q:.4f}")
-                print(f"질문 번역에 한국어 포함 여부: {contains_korean(translated_q)}")
+                #print(f"질문 번역 유사도 (시도 {attempts + 1}): {similarity_q:.4f}")
+                #print(f"질문 번역에 한국어 포함 여부: {contains_korean(translated_q)}")
                 attempts += 1
 
             if attempts == 5:
-                print(f"최대 재시도 횟수 도달. 질문 최종 번역: {translated_q}")
+                #print(f"최대 재시도 횟수 도달. 질문 최종 번역: {translated_q}")
         else:
             translated_q = question  # If the question is already in English, no translation needed
 
@@ -96,12 +96,12 @@ def translate_q_and_a(conversation_list: List[q_and_a], translation_model: str, 
                 embedded_answer = passage_embeddings.embed_documents([answer])
                 embedded_translated_a = passage_embeddings.embed_documents([translated_a])
                 similarity_a = calculate_similarity(embedded_answer, embedded_translated_a)
-                print(f"답변 번역 유사도 (시도 {attempts + 1}): {similarity_a:.4f}")
-                print(f"답변 번역에 한국어 포함 여부: {contains_korean(translated_a)}")
+                #print(f"답변 번역 유사도 (시도 {attempts + 1}): {similarity_a:.4f}")
+                #print(f"답변 번역에 한국어 포함 여부: {contains_korean(translated_a)}")
                 attempts += 1
 
             if attempts == 5:
-                print(f"최대 재시도 횟수 도달. 답변 최종 번역: {translated_a}")
+                #print(f"최대 재시도 횟수 도달. 답변 최종 번역: {translated_a}")
         else:
             translated_a = answer  # If the answer is already in English, no translation needed
 
