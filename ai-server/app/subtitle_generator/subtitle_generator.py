@@ -153,10 +153,14 @@ class SubtitleGenerator():
             for subtitle_embedding in subtitle_embedding_list:
                 subtitle_embedding_numpy.extend(subtitle_embedding)
             subtitle_embedding_numpy = np.array(subtitle_embedding_numpy) # (N, 4096)
+
+            # Ensure the number of clusters does not exceed the number of data points
+            n_samples = subtitle_embedding_numpy.shape[0]  # 데이터 포인트의 개수
+            n_clusters = min(n_samples, self.merge_cluster_num)  # 클러스터 수가 샘플 수를 초과하지 않도록 조정
             
             # Cluster the embeddings using KMeans
             logging.info('Start calculating kMeans...')
-            kmeans = KMeans(n_clusters=self.merge_cluster_num, random_state=42)
+            kmeans = KMeans(n_clusters=n_clusters, random_state=42)
             kmeans.fit(subtitle_embedding_numpy)
 
             # Compute the Euclidean distance between the given embedding and each cluster center
@@ -171,15 +175,15 @@ class SubtitleGenerator():
                 print(subtitle_index)
             
             # Sum up subtitles with same clusters and merge them into a single subtitle with an LLM 
-            subtitle_clustered = [[] for _ in range(self.merge_cluster_num)]
+            subtitle_clustered = [[] for _ in range(n_clusters)]
             for i, (subtitles) in enumerate(subtitle_list):
                 for j, (single_subtitle) in enumerate(subtitles):
                     subtitle_clustered[subtitle_index[i][j]].append(single_subtitle)
             if self.debug:
                 print(subtitle_clustered)
 
-            logging.info(f'Merging subtitles into {self.merge_cluster_num} subtitle...')
-            for i in range(self.merge_cluster_num):
+            logging.info(f'Merging subtitles into {n_clusters} subtitle...')
+            for i in range(n_clusters):
                 subtitle_merge_prompt : Annotated[str, HumanMessage] = langfuse.get_prompt("subtitle_generator_merge")
                 prompt = subtitle_merge_prompt.compile(subtitles=str(subtitle_clustered[i]))
                 response = self.model.invoke(prompt)
