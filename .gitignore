@@ -1,7 +1,7 @@
 .git/
 node_modules/
 
-# .env
+.env
 # Created by https://www.toptal.com/developers/gitignore/api/visualstudiocode,react,node,macos,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudiocode,react,node,macos,windows
 
