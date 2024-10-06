@@ -21,12 +21,12 @@ from langfuse import Langfuse
 from langfuse.callback import CallbackHandler
 
 # 평가 함수 불러오기
-from evaluation_utils import EvaluationUtils
-from evaluate_score import evaluate_processed_answer, evaluate_coherence  
+from app.processing_qna.evaluation_utils import EvaluationUtils
+from app.processing_qna.evaluate_score import evaluate_processed_answer, evaluate_coherence  
 
-from type import CodeStorage, QA, QAProcessorGraphState as GraphState
-from constants import CONVERSATION_ID
-from processed_qna_db import ProcessedQnADBHandler
+from app.type import CodeStorage, QA, QAProcessorGraphState as GraphState
+from app.constants import CONVERSATION_ID
+from app.processing_qna.processed_qna_db import ProcessedQnADBHandler
 
 langfuse_handler = CallbackHandler()
 langfuse = Langfuse()
@@ -182,7 +182,7 @@ class QnAProcessor:
 
 
 def run_pipeline(model_name, conversation_id) :
-
+    # 평가시에 gpt-4o-mini 모델 사용
     if model_name == "gpt-4o-mini":
         model= ChatOpenAI(model='gpt-4o-mini', temperature=0, max_tokens=None,
             timeout=None,

@@ -1,7 +1,7 @@
 import logging
 import warnings
 from functools import wraps
-from type import Message, QA
+from app.type import Message, QA
 from supabase import Client
 
 # langfuse
