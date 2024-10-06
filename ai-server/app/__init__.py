@@ -12,6 +12,7 @@ from app.subtitle_generator.subtitle_generator import SubtitleGenerator
 from app.processing_qna.qna_processor import run_pipeline
 from app.processing_qna.processed_qna_db import ProcessedQnADBHandler
 from app.writer.writer import compiled_graph, GraphState
+from datetime import datetime
 
 # 블루프린트 등록
 from .categorize_questions import categorize_questions_bp
@@ -110,7 +111,7 @@ def create_app():
         # 1. 목차 생성
         generatorClass = SubtitleGenerator(config_path = "app/configs/subtitle_generator.yaml");
         result = generatorClass(messages)
-        print(result);
+
 
         # 2. 질문 압축 및 코드 추출
         processed_qna_list, code_documents = run_pipeline("solar-pro", conversation_id);
@@ -119,13 +120,13 @@ def create_app():
         ## 목차 딕셔너리의 value 리스트 내에 있는 값들을 모두 문자열로 처리
         for key, value in result[1].items():
             result[1][key] = [str(v) for v in value]
-        print(result)
 
         # 블로그 작성 모듈 이전에 질문 압축 및 코드 추출 모듈에서 나온 결과 전처리
         ## Database 삽입 및 조회를 위한 인스턴스 생성
         qna_db_handler = ProcessedQnADBHandler()
         ## 질문 압축 및 코드 추출 모듈에서 나온 결과 전처리
         processed_code_documents = qna_db_handler._format_extracted_code(code_documents)
+
         # 3. 블로그 작성
         ## 들어갈 graph_state를 정의
         graph_state = GraphState(
@@ -143,8 +144,55 @@ def create_app():
                 "callbacks": [langfuse_handler]}
         )
 
+        final_technote = format_input(final_state["final_documents"]);
+        title = get_current_datetime()
 
+
+        # 6. 노션 페이지 생성 및 게시
+        notion_title = title
+        notion_content = final_technote
+        question_type = []
+        requirements = []
+        framework_tags = []
+        language_tags = []
+        os_tags = []
+        tech_stack_tags = []
+
+
+
+
+        notion_response = requests.post('http://localhost:4000/publish-to-notion', json={
+            "title": notion_title, 
+            "content": notion_content, 
+            "question_type": question_type,
+            "os_tags": os_tags,
+            "framework_tags": framework_tags,
+            "language_tags": language_tags,
+            "tech_stack_tags": tech_stack_tags
+        })
+
+        
+        if notion_response.status_code == 200:
+            notion_page_id = notion_response.json().get('page_id')
+            notion_page_url = notion_response.json().get('url')
+            notion_page_public_url = notion_response.json().get('public_url')
+            return jsonify({"message": "Blog generated and published to Notion successfully", "notion_page_id": notion_page_id, "notion_page_url": notion_page_url, "notion_page_public_url": notion_page_public_url}), 200
+        else:
+            return jsonify({"error": "Failed to publish to Notion", "details": notion_response.json()}), 500
         return jsonify({"result": result, "processed_qna_list":processed_qna_list,"code_documents": code_documents, "final_state": final_state}), 200
+    def format_input(input_dict):
+        # 입력된 딕셔너리의 값들을 줄바꿈으로 연결하여 하나의 문자열로 만듭니다.
+        return '\n'.join(input_dict.values())
+    
+    def get_current_datetime():
+        # 현재 날짜와 시간을 가져옵니다
+        now = datetime.now()
+        # 연-월-일 시:분 형식으로 변환합니다
+        formatted_datetime = now.strftime("%Y년 %m월 %d일 %H시 %M분")
+        return formatted_datetime
+
+
+
 
     @app.route('/generate-blog', methods=['POST'])
     def test():
@@ -263,7 +311,7 @@ def create_app():
             notion_page_id = notion_response.json().get('page_id')
             notion_page_url = notion_response.json().get('url')
             notion_page_public_url = notion_response.json().get('public_url')
-            return jsonify({"message": "Blog generated and published to Notion successfully", "notion_page_id": notion_page_id, "notion_page_url": notion_page_url, "notion_page_public_url": notion_page_public_url}), 200
+            return jsonify({"message": "Blog generated and published to Notion successfully", "notion_page_id": notion_page_id, "notion_page_url": notion_page_url, "notion_page_public_url": notion_page_public_url, "notion_content": notion_content}), 200
         else:
             return jsonify({"error": "Failed to publish to Notion", "details": notion_response.json()}), 500
 
