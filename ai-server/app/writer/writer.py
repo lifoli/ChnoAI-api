@@ -91,6 +91,8 @@ def overall_precision_recall(generated_doc, gt_doc):
 
 ##########################블로그 초안 작성하는 노드와 관련 함수 정의###############################
 
+model = ChatUpstage(model="solar-pro")
+
 def write(model, q_and_a, document):
     writing_prompt = langfuse.get_prompt("writing_prompt")
     prompt = writing_prompt.compile(q=q_and_a['q'], a=q_and_a['a'], document=document)
@@ -163,7 +165,9 @@ def make_heading_list_for_prompt(heading_list):
     return text[:-1]
 
 def document_refinement(state: GraphState):
-    code_list = list(loaded_data['EXAMPLE9']['code_document'].keys())
+    # 그래프 스테이트에서 code_list를 받아오도록 변경, 아래 코드 삭제 요함
+    # code_list = list(loaded_data['EXAMPLE9']['code_document'].keys())
+    code_list = list(state['code_document'].keys())
     document_refinement_1 = langfuse.get_prompt("document_refinement_1")
     document_refinement_2 = langfuse.get_prompt("document_refinement_2")
     for code_id in code_list:
@@ -239,34 +243,37 @@ writer_graph.add_edge('블로그 초안 작성', "블로그 글 다듬기")
 writer_graph.add_edge("블로그 글 다듬기", "블로그 글 후처리")
 ##########################그래프 내의 요소(node, edge)들을 정의###############################3
 
-################ 아래는 example9 데이터가 들어있는 json 파일에서 데이터를 불러와 테스트해보는 코드 ################
-
-import json
-
-with open('data_for_writing.json', 'r', encoding='utf-8') as json_file:
-    loaded_data = json.load(json_file)
-
-model = ChatUpstage(model="solar-pro")
-    
-##########################그래프 실행###############################
 # 그래프를 컴파일
 compiled_graph = writer_graph.compile(checkpointer=memory)
 
-# 들어갈 graph_state를 정의
-graph_state = GraphState(
-    preprocessed_conversations=loaded_data['EXAMPLE9']['preprocessed_conversations'],
-    code_document=loaded_data['EXAMPLE9']['code_document'],
-    message_to_index_dict=loaded_data['EXAMPLE9']['message_to_index_dict'],
-    final_documents=loaded_data['EXAMPLE9']['final_documents']
-)
+# 아래코드 배포시에 주석처리
+################ 아래는 example9 데이터가 들어있는 json 파일에서 데이터를 불러와 테스트해보는 코드 ################
 
-# 그래프를 실행
-final_state = compiled_graph.invoke(
-    graph_state, 
-    config={
-        "configurable": {"thread_id": 42}, 
-        "callbacks": [langfuse_handler]}
-)
+# import json
+
+# with open('data_for_writing.json', 'r', encoding='utf-8') as json_file:
+#     loaded_data = json.load(json_file)
+
+
+    
+# ##########################그래프 실행###############################
+
+
+# # 들어갈 graph_state를 정의
+# graph_state = GraphState(
+#     preprocessed_conversations=loaded_data['EXAMPLE9']['preprocessed_conversations'],
+#     code_document=loaded_data['EXAMPLE9']['code_document'],
+#     message_to_index_dict=loaded_data['EXAMPLE9']['message_to_index_dict'],
+#     final_documents=loaded_data['EXAMPLE9']['final_documents']
+# )
+
+# # 그래프를 실행
+# final_state = compiled_graph.invoke(
+#     graph_state, 
+#     config={
+#         "configurable": {"thread_id": 42}, 
+#         "callbacks": [langfuse_handler]}
+# )
 ##########################그래프 실행###############################
 
 # # eval
@@ -275,5 +282,5 @@ final_state = compiled_graph.invoke(
 # print(f"Overall Recall: {recall:.2f}")
 
 # 만든 최종 그래프 출력
-for text in list(final_state['final_documents'].values()):
-    print(text, end='\n\n')
+# for text in list(final_state['final_documents'].values()):
+#     print(text, end='\n\n')
