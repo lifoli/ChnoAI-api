@@ -136,7 +136,7 @@ exports.gettechNoteListByUserId = async (req: Request, res: Response) => {
 
 async function sendSlackNotification(message: string) {
   const webhookUrl =
-    "https://hooks.slack.com/services/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"; // 위에서 생성한 Webhook URL을 여기에 삽입합니다.
+    "https://hooks.slack.com/services/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"; // 위에서 생성한 Webhook URL을 여기에 삽입합니다.
 
   const payload = {
     text: message, // 슬랙 채널에 보낼 메시지
@@ -298,7 +298,7 @@ exports.createNotionPage = async (req: Request, res: Response) => {
       process.env.NODE_ENV === "development" ? "ai-server-dev" : "ai-server";
 
     const result = await axios
-      .post(`http://${aiServerContainerName}:4000/generate-blog`, {
+      .post(`http://${aiServerContainerName}:4000/generate-blog2`, {
         conversation_id: conversation_id,
       })
       .then((response) => {
