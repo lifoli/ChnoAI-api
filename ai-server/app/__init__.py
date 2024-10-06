@@ -5,7 +5,13 @@ import sys
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from langfuse.callback import CallbackHandler
+from app.utils import fetch_messages
 
+from app.subtitle_generator.subtitle_generator import SubtitleGenerator
+from app.processing_qna.qna_processor import run_pipeline
+from app.processing_qna.processed_qna_db import ProcessedQnADBHandler
+from app.writer.writer import compiled_graph, GraphState
 
 # 블루프린트 등록
 from .categorize_questions import categorize_questions_bp
@@ -16,7 +22,7 @@ from .draft_explanation_blog import draft_explanation_blog_bp
 from .review_and_finalize_blog import review_and_finalize_blog_bp
 
 from .publish_to_notion import publish_to_notion_bp
-
+langfuse_handler = CallbackHandler()
 
 
 
@@ -96,12 +102,55 @@ def create_app():
             return chat_url, chat_room_title, data
 
 
+    @app.route('/generate-blog2', methods=['POST'])
+    def generate_blog2():
+        data = request.json
+        conversation_id = data.get('conversation_id')
+        messages = fetch_messages(database, conversation_id)
+        # 1. 목차 생성
+        generatorClass = SubtitleGenerator(config_path = "app/configs/subtitle_generator.yaml");
+        result = generatorClass(messages)
+        print(result);
+
+        # 2. 질문 압축 및 코드 추출
+        processed_qna_list, code_documents = run_pipeline("solar-pro", conversation_id);
+
+        # 블로그 작성 모듈 이전에 목차 생성 모듈에서 나온 결과 전처리
+        ## 목차 딕셔너리의 value 리스트 내에 있는 값들을 모두 문자열로 처리
+        for key, value in result[1].items():
+            result[1][key] = [str(v) for v in value]
+        print(result)
+
+        # 블로그 작성 모듈 이전에 질문 압축 및 코드 추출 모듈에서 나온 결과 전처리
+        ## Database 삽입 및 조회를 위한 인스턴스 생성
+        qna_db_handler = ProcessedQnADBHandler()
+        ## 질문 압축 및 코드 추출 모듈에서 나온 결과 전처리
+        processed_code_documents = qna_db_handler._format_extracted_code(code_documents)
+        # 3. 블로그 작성
+        ## 들어갈 graph_state를 정의
+        graph_state = GraphState(
+            preprocessed_conversations=processed_qna_list,
+            code_document=processed_code_documents,
+            message_to_index_dict=result[1],
+            final_documents=result[0]
+        )
+
+        ## graph_state를 이용하여 블로그 작성
+        final_state = compiled_graph.invoke(
+            graph_state, 
+            config={
+                "configurable": {"thread_id": 42}, 
+                "callbacks": [langfuse_handler]}
+        )
+
+
+        return jsonify({"result": result, "processed_qna_list":processed_qna_list,"code_documents": code_documents, "final_state": final_state}), 200
 
     @app.route('/generate-blog', methods=['POST'])
     def test():
         data = request.json
         conversation_id = data.get('conversation_id')
-        
+
         # 1. 메시지 가져오기
         questions = get_messages(conversation_id, message_type='question')
         answers = get_messages(conversation_id, message_type='answer')
